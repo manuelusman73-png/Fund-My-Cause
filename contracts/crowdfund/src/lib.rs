@@ -90,6 +90,7 @@ impl CrowdfundContract {
         min_contribution: i128,
         title: String,
         description: String,
+        social_links: Option<Vec<String>>,
         platform_config: Option<PlatformConfig>,
     ) -> Result<(), ContractError> {
         if env.storage().instance().has(&DataKey::Creator) {
@@ -111,6 +112,11 @@ impl CrowdfundContract {
         env.storage().instance().set(&DataKey::MinContribution, &min_contribution);
         env.storage().instance().set(&DataKey::Title, &title);
         env.storage().instance().set(&DataKey::Description, &description);
+
+        if let Some(links) = social_links {
+            env.storage().instance().set(&DataKey::SocialLinks, &links);
+        }
+
         env.storage().instance().set(&DataKey::TotalRaised, &0i128);
         env.storage().instance().set(&DataKey::Status, &Status::Active);
 
@@ -291,6 +297,13 @@ impl CrowdfundContract {
             .instance()
             .get(&DataKey::Description)
             .unwrap_or_else(|| String::from_str(&env, ""))
+    }
+
+    pub fn social_links(env: Env) -> Vec<String> {
+        env.storage()
+            .instance()
+            .get(&DataKey::SocialLinks)
+            .unwrap_or_else(|| Vec::new(&env))
     }
 
     pub fn version(_env: Env) -> u32 {

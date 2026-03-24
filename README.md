@@ -49,7 +49,7 @@ The Soroban contract lives in `contracts/crowdfund/src/lib.rs` and exposes the f
 
 | Function | Description |
 |---|---|
-| `initialize(creator, token, goal, deadline, min_contribution, title, description, platform_config)` | Create a new campaign |
+| `initialize(creator, token, goal, deadline, min_contribution, title, description, social_links, platform_config)` | Create a new campaign |
 | `contribute(contributor, amount)` | Pledge tokens before the deadline |
 | `withdraw()` | Creator claims funds after a successful campaign |
 | `refund_single(contributor)` | Contributor claims their own refund if goal not met |
@@ -60,6 +60,7 @@ The Soroban contract lives in `contracts/crowdfund/src/lib.rs` and exposes the f
 | `contribution(contributor)` | Contribution amount for a specific address |
 | `min_contribution()` | Minimum allowed contribution |
 | `title()` / `description()` | Campaign metadata |
+| `social_links()` | Campaign social URLs |
 | `version()` | Contract version number |
 
 ### Pull-based Refund Model
@@ -124,7 +125,7 @@ cargo test --workspace
 
 ```bash
 DEADLINE=$(date -d "+30 days" +%s)
-./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause"
+./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause" null
 ```
 
 Save the printed `Contract ID` — you'll need it in the frontend config.

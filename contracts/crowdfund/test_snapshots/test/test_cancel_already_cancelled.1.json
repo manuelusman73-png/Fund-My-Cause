@@ -60,6 +60,13 @@
                 {
                   "string": "My Description"
                 },
+                {
+                  "vec": [
+                    {
+                      "string": "https://example.com"
+                    }
+                  ]
+                },
                 "void"
               ]
             }
@@ -83,6 +90,7 @@
         }
       ]
     ],
+    [],
     []
   ],
   "ledger": {
@@ -348,6 +356,22 @@
                             "hi": 0,
                             "lo": 10
                           }
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "SocialLinks"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "vec": [
+                            {
+                              "string": "https://example.com"
+                            }
+                          ]
                         }
                       },
                       {

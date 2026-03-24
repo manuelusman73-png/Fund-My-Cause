@@ -22,7 +22,7 @@ fn test_cancel_happy_path() {
     let goal = 10000;
     let min_contribution = 100;
 
-    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None);
+    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None, &None);
 
     // Some contributions
     let user1 = Address::generate(&env);
@@ -38,6 +38,9 @@ fn test_cancel_happy_path() {
     let events = env.events().all();
     let topics: Vec<Val> = ("campaign", "cancelled").into_val(&env);
     let _cancelled_event = events.iter().find(|e| e.1 == topics).expect("cancelled event not found");
+
+    // Verify social_links are empty
+    assert_eq!(client.social_links().len(), 0);
 
     // Verify withdrawing fails
     let result = client.try_withdraw();
@@ -67,9 +70,17 @@ fn test_cancel_already_cancelled() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
-    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None);
+    let mut links = Vec::new(&env);
+    links.push_back(String::from_str(&env, "https://example.com"));
+    
+    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &Some(links), &None);
     client.cancel_campaign();
 
     let result = client.try_cancel_campaign();
     assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
+
+    // Verify social_links are populated
+    let stored_links = client.social_links();
+    assert_eq!(stored_links.len(), 1);
+    assert_eq!(stored_links.get(0).unwrap(), String::from_str(&env, "https://example.com"));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Fund-My-Cause crowdfund contract to Stellar testnet
-# Usage: ./scripts/deploy.sh <creator> <token> <goal> <deadline> <min_contribution> <title> <description>
+# Usage: ./scripts/deploy.sh <creator> <token> <goal> <deadline> <min_contribution> <title> <description> <social_links>
 
 set -e
 
@@ -11,6 +11,7 @@ DEADLINE=$4
 MIN_CONTRIBUTION=${5:-1}
 TITLE=${6:-"Default Title"}
 DESCRIPTION=${7:-"Default Description"}
+SOCIAL_LINKS=${8:-"null"}
 
 echo "Building WASM..."
 cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/crowdfund/Cargo.toml
@@ -36,6 +37,7 @@ stellar contract invoke \
   --min_contribution "$MIN_CONTRIBUTION" \
   --title "$TITLE" \
   --description "$DESCRIPTION" \
+  --social_links "$SOCIAL_LINKS" \
   --platform_config null
 
 echo "Campaign initialized successfully."
