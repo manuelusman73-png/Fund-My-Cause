@@ -5,3 +5,4 @@ target
 *.wasm
 .env
 .env.local
+# Cargo.lock is intentionally tracked — see README

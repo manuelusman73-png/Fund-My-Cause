@@ -168,6 +168,20 @@ MIT — see [LICENSE](./LICENSE).
 
 ---
 
+## Reproducible Builds & Cargo.lock
+
+`Cargo.lock` is **committed to this repository** intentionally.
+
+For application binaries and smart contracts, locking every transitive dependency to an exact version is a security requirement — not optional. Without it:
+
+- A `cargo build` on a different machine or at a later date may silently pull in a newer (potentially compromised or breaking) version of any dependency.
+- Audits and vulnerability scans target specific versions; a floating lock file makes those results meaningless.
+- Soroban WASM bytecode must be byte-for-byte reproducible so that on-chain contract hashes can be independently verified.
+
+This follows the [Cargo book's recommendation](https://doc.rust-lang.org/cargo/faq.html#why-do-binaries-have-cargolock-in-version-control-but-not-libraries) for binaries and aligns with Rust smart contract best practices.
+
+---
+
 ## Built on Stellar
 
 Fund-My-Cause is powered by the Stellar network and Soroban smart contracts. Stellar provides fast, low-cost transactions with 5-second finality, making it ideal for crowdfunding at scale.
