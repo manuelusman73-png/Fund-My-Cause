@@ -70,6 +70,7 @@ pub enum ContractError {
     GoalNotReached = 4,
     GoalReached = 5,
     Overflow = 6,
+    NotActive = 7,
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -124,6 +125,11 @@ impl CrowdfundContract {
             panic!("amount below minimum");
         }
 
+        let status: Status = env.storage().instance().get(&DataKey::Status).unwrap();
+        if status != Status::Active {
+            return Err(ContractError::NotActive);
+        }
+
         let deadline: u64 = env.storage().instance().get(&DataKey::Deadline).unwrap();
         if env.ledger().timestamp() > deadline {
             return Err(ContractError::CampaignEnded);
@@ -162,7 +168,7 @@ impl CrowdfundContract {
     pub fn withdraw(env: Env) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&DataKey::Status).unwrap();
         if status != Status::Active {
-            panic!("campaign is not active");
+            return Err(ContractError::NotActive);
         }
 
         let creator: Address = env.storage().instance().get(&DataKey::Creator).unwrap();
@@ -201,17 +207,36 @@ impl CrowdfundContract {
         Ok(())
     }
 
-    /// Pull-based refund — each contributor claims individually if goal not met.
-    pub fn refund_single(env: Env, contributor: Address) -> Result<(), ContractError> {
-        let deadline: u64 = env.storage().instance().get(&DataKey::Deadline).unwrap();
-        if env.ledger().timestamp() <= deadline {
-            return Err(ContractError::CampaignStillActive);
+    /// Cancel a campaign before the deadline.
+    pub fn cancel_campaign(env: Env) -> Result<(), ContractError> {
+        let status: Status = env.storage().instance().get(&DataKey::Status).unwrap();
+        if status != Status::Active {
+            return Err(ContractError::NotActive);
         }
 
-        let goal: i128 = env.storage().instance().get(&DataKey::Goal).unwrap();
-        let total: i128 = env.storage().instance().get(&DataKey::TotalRaised).unwrap();
-        if total >= goal {
-            return Err(ContractError::GoalReached);
+        let creator: Address = env.storage().instance().get(&DataKey::Creator).unwrap();
+        creator.require_auth();
+
+        env.storage().instance().set(&DataKey::Status, &Status::Cancelled);
+        env.events().publish(("campaign", "cancelled"), ());
+        Ok(())
+    }
+
+    /// Pull-based refund — each contributor claims individually if goal not met.
+    pub fn refund_single(env: Env, contributor: Address) -> Result<(), ContractError> {
+        let status: Status = env.storage().instance().get(&DataKey::Status).unwrap();
+
+        if status != Status::Cancelled {
+            let deadline: u64 = env.storage().instance().get(&DataKey::Deadline).unwrap();
+            if env.ledger().timestamp() <= deadline {
+                return Err(ContractError::CampaignStillActive);
+            }
+
+            let goal: i128 = env.storage().instance().get(&DataKey::Goal).unwrap();
+            let total: i128 = env.storage().instance().get(&DataKey::TotalRaised).unwrap();
+            if total >= goal {
+                return Err(ContractError::GoalReached);
+            }
         }
 
         let key = DataKey::Contribution(contributor.clone());
@@ -313,3 +338,6 @@ impl CrowdfundContract {
         }
     }
 }
+
+#[cfg(test)]
+mod test;
