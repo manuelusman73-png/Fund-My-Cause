@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { PledgeModal } from "@/components/ui/PledgeModal";
+import { Rocket, Users, Coins, ArrowRight, PlusCircle, CheckCircle2 } from "lucide-react";
 
-const mockCampaigns = [
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+const FEATURED = [
   {
     id: "1",
     title: "Eco-Friendly Water Purification",
@@ -36,54 +40,154 @@ const mockCampaigns = [
   },
 ];
 
+const STATS = [
+  { label: "Campaigns Launched", value: "128", icon: Rocket },
+  { label: "Total Raised", value: "2.4M XLM", icon: Coins },
+  { label: "Contributors", value: "9,300+", icon: Users },
+];
+
+const HOW_IT_WORKS = [
+  {
+    step: 1,
+    title: "Create",
+    description: "Deploy a campaign on-chain with your goal, deadline, and token in minutes.",
+  },
+  {
+    step: 2,
+    title: "Fund",
+    description: "Contributors pledge XLM or any Stellar token before the deadline.",
+  },
+  {
+    step: 3,
+    title: "Withdraw or Refund",
+    description: "Goal met? Withdraw funds. Goal missed? Contributors claim refunds automatically.",
+  },
+];
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function Home() {
-  const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+  const [pledge, setPledge] = useState<string | null>(null);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       <Navbar />
 
-      <section className="max-w-6xl mx-auto px-6 py-20 text-center">
-        <h1 className="text-5xl font-bold mb-4">Fund the Future on Stellar</h1>
-        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-          Discover and support innovative projects with lightning-fast, secure transactions on the
-          Stellar network.
+      {/* ── Hero ── */}
+      <section className="max-w-4xl mx-auto px-6 py-24 text-center">
+        <div className="inline-flex items-center gap-2 bg-indigo-950 border border-indigo-800 text-indigo-300 text-xs font-medium px-3 py-1 rounded-full mb-6">
+          <Rocket size={12} /> Built on Stellar · Powered by Soroban
+        </div>
+        <h1 className="text-5xl sm:text-6xl font-bold leading-tight mb-5">
+          Fund the Future,<br />On-Chain.
+        </h1>
+        <p className="text-gray-400 text-lg max-w-xl mx-auto mb-8">
+          Create or support campaigns with lightning-fast, trustless transactions on the Stellar network.
         </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link
+            href="/campaigns"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-medium transition"
+          >
+            Explore Campaigns <ArrowRight size={16} />
+          </Link>
+          <Link
+            href="/create"
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-6 py-3 rounded-xl font-medium transition"
+          >
+            <PlusCircle size={16} /> Start a Campaign
+          </Link>
+        </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 pb-20 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {mockCampaigns.map((campaign) => {
-          const progress = (campaign.raised / campaign.goal) * 100;
-          const isFunded = progress >= 100;
-          return (
-            <div key={campaign.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={campaign.image} alt={campaign.title} className="w-full h-48 object-cover" />
-              <div className="p-5 space-y-3">
-                <h2 className="text-lg font-semibold">{campaign.title}</h2>
-                <p className="text-gray-400 text-sm">{campaign.description}</p>
-                <ProgressBar progress={progress} />
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>{campaign.raised.toLocaleString()} XLM raised</span>
-                  <span>{campaign.goal.toLocaleString()} XLM goal</span>
-                </div>
-                <CountdownTimer deadline={campaign.deadline} />
-                <button
-                  className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  onClick={() => !isFunded && setSelectedCampaign(campaign.title)}
-                  disabled={isFunded}
-                >
-                  {isFunded ? "Successfully Funded" : "Pledge Now"}
-                </button>
-              </div>
+      {/* ── Stats bar ── */}
+      <section className="border-y border-gray-800 bg-gray-900/50">
+        <div className="max-w-4xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+          {STATS.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="flex flex-col items-center gap-2">
+              <Icon size={20} className="text-indigo-400" />
+              <span className="text-2xl font-bold">{value}</span>
+              <span className="text-sm text-gray-400">{label}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </section>
 
-      {selectedCampaign && (
-        <PledgeModal campaignTitle={selectedCampaign} onClose={() => setSelectedCampaign(null)} />
-      )}
+      {/* ── Featured campaigns ── */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Featured Campaigns</h2>
+          <Link href="/campaigns" className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition">
+            View all <ArrowRight size={14} />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {FEATURED.map((c) => {
+            const progress = (c.raised / c.goal) * 100;
+            const isFunded = progress >= 100;
+            return (
+              <div key={c.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.image} alt={c.title} className="w-full h-48 object-cover" />
+                <div className="p-5 space-y-3">
+                  <h3 className="text-base font-semibold">{c.title}</h3>
+                  <p className="text-gray-400 text-sm">{c.description}</p>
+                  <ProgressBar progress={progress} />
+                  <div className="flex justify-between text-sm text-gray-400">
+                    <span>{c.raised.toLocaleString()} XLM raised</span>
+                    <span>{c.goal.toLocaleString()} XLM goal</span>
+                  </div>
+                  <CountdownTimer deadline={c.deadline} />
+                  <button
+                    className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    onClick={() => !isFunded && setPledge(c.title)}
+                    disabled={isFunded}
+                  >
+                    {isFunded ? "Successfully Funded" : "Pledge Now"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── How It Works ── */}
+      <section className="bg-gray-900/50 border-t border-gray-800">
+        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-2xl font-bold mb-10">How It Works</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {HOW_IT_WORKS.map(({ step, title, description }) => (
+              <div key={step} className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">
+                  {step}
+                </div>
+                <h3 className="font-semibold text-lg">{title}</h3>
+                <p className="text-gray-400 text-sm">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-gray-800 mt-auto">
+        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div className="flex items-center gap-2 font-semibold text-white">
+            <Rocket size={16} className="text-indigo-400" /> Fund-My-Cause
+          </div>
+          <div className="flex gap-5">
+            <Link href="/campaigns" className="hover:text-white transition">Campaigns</Link>
+            <Link href="/create" className="hover:text-white transition">Create</Link>
+            <Link href="/dashboard" className="hover:text-white transition">Dashboard</Link>
+            <a href="https://developers.stellar.org" target="_blank" rel="noreferrer" className="hover:text-white transition">Stellar Docs</a>
+            <a href="https://github.com/Fidelis900/Fund-My-Cause" target="_blank" rel="noreferrer" className="hover:text-white transition">GitHub</a>
+          </div>
+          <span>MIT License · Built on Stellar</span>
+        </div>
+      </footer>
+
+      {pledge && <PledgeModal campaignTitle={pledge} onClose={() => setPledge(null)} />}
     </main>
   );
 }

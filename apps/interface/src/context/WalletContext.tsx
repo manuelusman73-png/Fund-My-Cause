@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { getPublicKey, isConnected, signTransaction } from "@stellar/freighter-api";
+import { getAddress, isConnected, signTransaction } from "@stellar/freighter-api";
 
 interface WalletContextType {
   address: string | null;
@@ -24,12 +24,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const connected = await isConnected();
-      if (!connected) {
+      if (!connected.isConnected) {
         setError("Freighter wallet not found. Please install it.");
         return;
       }
-      const pubKey = await getPublicKey();
-      setAddress(pubKey);
+      const result = await getAddress();
+      if (result.error) {
+        setError("Failed to get address from Freighter.");
+        return;
+      }
+      setAddress(result.address);
     } catch (e) {
       setError("Failed to connect wallet.");
       console.error(e);
@@ -40,9 +44,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = () => setAddress(null);
 
-  const signTx = async (xdr: string) => {
-    const result = await signTransaction(xdr, { network: "TESTNET" });
-    return result;
+  const signTx = async (xdr: string): Promise<string> => {
+    const result = await signTransaction(xdr, { networkPassphrase: "Test SDF Network ; September 2015" });
+    if (result.error) throw new Error(result.error.message ?? "Signing failed");
+    return result.signedTxXdr;
   };
 
   return (

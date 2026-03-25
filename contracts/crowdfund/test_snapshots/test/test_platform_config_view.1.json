@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 4,
+    "address": 5,
     "nonce": 0
   },
   "auth": [
@@ -55,19 +55,32 @@
                   }
                 },
                 {
-                  "string": "My Title"
+                  "string": "Title"
                 },
                 {
-                  "string": "My Description"
+                  "string": "Description"
                 },
+                "void",
                 {
-                  "vec": [
+                  "map": [
                     {
-                      "string": "https://example.com"
+                      "key": {
+                        "symbol": "address"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "fee_bps"
+                      },
+                      "val": {
+                        "u32": 250
+                      }
                     }
                   ]
-                },
-                "void"
+                }
               ]
             }
           },
@@ -75,22 +88,6 @@
         }
       ]
     ],
-    [
-      [
-        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-        {
-          "function": {
-            "contract_fn": {
-              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
-              "function_name": "cancel_campaign",
-              "args": []
-            }
-          },
-          "sub_invocations": []
-        }
-      ]
-    ],
-    [],
     []
   ],
   "ledger": {
@@ -170,39 +167,6 @@
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
             "key": {
               "ledger_key_nonce": {
-                "nonce": 1033654523790656264
-              }
-            },
-            "durability": "temporary"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "ledger_key_nonce": {
-                    "nonce": 1033654523790656264
-                  }
-                },
-                "durability": "temporary",
-                "val": "void"
-              }
-            },
-            "ext": "v0"
-          },
-          6311999
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "ledger_key_nonce": {
                 "nonce": 5541220902715666415
               }
             },
@@ -235,7 +199,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
             "key": {
-              "symbol": "CONTRIBS"
+              "vec": [
+                {
+                  "symbol": "Contributors"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -248,7 +216,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
                 "key": {
-                  "symbol": "CONTRIBS"
+                  "vec": [
+                    {
+                      "symbol": "Contributors"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -288,22 +260,9 @@
                         "key": {
                           "vec": [
                             {
-                              "symbol": "ContributorCount"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "u32": 0
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
                               "symbol": "Creator"
                             }
                           ]
-                          "symbol": "CREATOR"
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
@@ -311,7 +270,11 @@
                       },
                       {
                         "key": {
-                          "symbol": "DEADLINE"
+                          "vec": [
+                            {
+                              "symbol": "Deadline"
+                            }
+                          ]
                         },
                         "val": {
                           "u64": 1000
@@ -319,15 +282,23 @@
                       },
                       {
                         "key": {
-                          "symbol": "DESC"
+                          "vec": [
+                            {
+                              "symbol": "Description"
+                            }
+                          ]
                         },
                         "val": {
-                          "string": "My Description"
+                          "string": "Description"
                         }
                       },
                       {
                         "key": {
-                          "symbol": "GOAL"
+                          "vec": [
+                            {
+                              "symbol": "Goal"
+                            }
+                          ]
                         },
                         "val": {
                           "i128": {
@@ -340,25 +311,9 @@
                         "key": {
                           "vec": [
                             {
-                              "symbol": "LargestContribution"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "i128": {
-                            "hi": 0,
-                            "lo": 0
-                          }
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
                               "symbol": "MinContribution"
                             }
                           ]
-                          "symbol": "MIN"
                         },
                         "val": {
                           "i128": {
@@ -369,39 +324,68 @@
                       },
                       {
                         "key": {
-                          "symbol": "SOCIAL"
-                        },
-                        "val": {
                           "vec": [
                             {
-                              "string": "https://example.com"
+                              "symbol": "PlatformConfig"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "address"
+                              },
+                              "val": {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "fee_bps"
+                              },
+                              "val": {
+                                "u32": 250
+                              }
                             }
                           ]
                         }
                       },
                       {
                         "key": {
-                          "symbol": "STATUS"
+                          "vec": [
+                            {
+                              "symbol": "Status"
+                            }
+                          ]
                         },
                         "val": {
                           "vec": [
                             {
-                              "symbol": "Cancelled"
+                              "symbol": "Active"
                             }
                           ]
                         }
                       },
                       {
                         "key": {
-                          "symbol": "TITLE"
+                          "vec": [
+                            {
+                              "symbol": "Title"
+                            }
+                          ]
                         },
                         "val": {
-                          "string": "My Title"
+                          "string": "Title"
                         }
                       },
                       {
                         "key": {
-                          "symbol": "TOKEN"
+                          "vec": [
+                            {
+                              "symbol": "Token"
+                            }
+                          ]
                         },
                         "val": {
                           "address": "CBUSYNQKASUYFWYC3M2GUEDMX4AIVWPALDBYJPNK6554BREHTGZ2IUNF"
@@ -409,7 +393,11 @@
                       },
                       {
                         "key": {
-                          "symbol": "TOTAL"
+                          "vec": [
+                            {
+                              "symbol": "TotalRaised"
+                            }
+                          ]
                         },
                         "val": {
                           "i128": {
