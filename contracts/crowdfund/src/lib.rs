@@ -295,6 +295,10 @@ impl CrowdfundContract {
         env.storage().instance().get(&DataKey::TotalRaised).unwrap_or(0)
     }
 
+    pub fn creator(env: Env) -> Address {
+        env.storage().instance().get(&DataKey::Creator).unwrap()
+    }
+
     pub fn goal(env: Env) -> i128 {
         env.storage().instance().get(&DataKey::Goal).unwrap()
     }

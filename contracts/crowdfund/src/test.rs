@@ -126,3 +126,29 @@ fn test_update_metadata() {
     let result = client.try_update_metadata(&None, &None, &None);
     assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
 }
+
+#[test]
+fn test_creator_view() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract(token_admin);
+    let contract_id = env.register_contract(None, CrowdfundContract);
+    let client = CrowdfundContractClient::new(&env, &contract_id);
+
+    client.initialize(
+        &creator,
+        &token_id,
+        &1000,
+        &1000,
+        &10,
+        &String::from_str(&env, "Title"),
+        &String::from_str(&env, "Description"),
+        &None,
+        &None,
+    );
+
+    assert_eq!(client.creator(), creator);
+}
