@@ -72,8 +72,7 @@ async function CampaignGrid() {
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { CampaignCard } from "@/components/ui/CampaignCard";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import { Campaign } from "@/types/campaign";
 import { Search } from "lucide-react";
@@ -153,6 +152,8 @@ const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: "Ended", value: "ended" },
 ];
 
+const PAGE_SIZE = 9;
+
 // ── Inner component (uses useSearchParams) ────────────────────────────────────
 
 function CampaignsInner() {
@@ -162,6 +163,7 @@ function CampaignsInner() {
   const filter = (searchParams.get("filter") as FilterTab) ?? "all";
   const sort = (searchParams.get("sort") as SortOption) ?? "newest";
   const query = searchParams.get("q") ?? "";
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
 
   const [pledge, setPledge] = useState<string | null>(null);
 
@@ -172,6 +174,14 @@ function CampaignsInner() {
     } else {
       params.set(key, value);
     }
+    // Reset to page 1 when filters change
+    if (key !== "page") params.delete("page");
+    router.replace(`/campaigns?${params.toString()}`, { scroll: false });
+  };
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page"); else params.set("page", String(p));
     router.replace(`/campaigns?${params.toString()}`, { scroll: false });
   };
 
@@ -187,6 +197,10 @@ function CampaignsInner() {
     ),
     sort,
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <>
@@ -237,38 +251,49 @@ function CampaignsInner() {
       {filtered.length === 0 ? (
         <p className="text-center text-gray-500 py-20">No campaigns match your filters.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filtered.map((campaign) => {
-            const progress = (campaign.raised / campaign.goal) * 100;
-            const isFunded = progress >= 100;
-            return (
-              <div key={campaign.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={campaign.image} alt={campaign.title} className="w-full h-48 object-cover" />
-                <div className="p-5 space-y-3">
-                  <h2 className="text-lg font-semibold">{campaign.title}</h2>
-                  <p className="text-gray-400 text-sm">{campaign.description}</p>
-                  <ProgressBar progress={progress} />
-                  <div className="flex justify-between text-sm text-gray-400">
-                    <span>{campaign.raised.toLocaleString()} XLM raised</span>
-                    <span>{campaign.goal.toLocaleString()} XLM goal</span>
-                  </div>
-                  <CountdownTimer deadline={campaign.deadline} />
-                  <button
-                    className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    onClick={() => !isFunded && setPledge(campaign.title)}
-                    disabled={isFunded}
-                  >
-                    {isFunded ? "Successfully Funded" : "Pledge Now"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <p className="text-sm text-gray-500 mb-4">{filtered.length} campaign{filtered.length !== 1 ? "s" : ""} found</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {paginated.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onPledge={(id) => setPledge(id)}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-10">
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-xl bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-xl bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {pledge && <PledgeModal campaignTitle={pledge} onClose={() => setPledge(null)} />}
+      {pledge && (
+        <PledgeModal
+          campaignTitle={ALL_CAMPAIGNS.find((c) => c.id === pledge)?.title ?? pledge}
+          onClose={() => setPledge(null)}
+        />
+      )}
     </>
   );
 }
