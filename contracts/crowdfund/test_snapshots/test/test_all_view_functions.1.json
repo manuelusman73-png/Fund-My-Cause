@@ -433,6 +433,44 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
             "key": {
+              "symbol": "CONTRIBS"
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+                "key": {
+                  "symbol": "CONTRIBS"
+                },
+                "durability": "persistent",
+                "val": {
+                  "vec": [
+                    {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                    },
+                    {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+            "key": {
               "vec": [
                 {
                   "symbol": "Contribution"
@@ -528,52 +566,6 @@
         {
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "Contributors"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "Contributors"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "vec": [
-                    {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                    },
-                    {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
             "key": "ledger_key_contract_instance",
             "durability": "persistent"
           }
@@ -595,11 +587,7 @@
                     "storage": [
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Creator"
-                            }
-                          ]
+                          "symbol": "CREATOR"
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
@@ -607,11 +595,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Deadline"
-                            }
-                          ]
+                          "symbol": "DEADLINE"
                         },
                         "val": {
                           "u64": 2000
@@ -619,11 +603,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Description"
-                            }
-                          ]
+                          "symbol": "DESC"
                         },
                         "val": {
                           "string": "This is a test"
@@ -631,11 +611,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Goal"
-                            }
-                          ]
+                          "symbol": "GOAL"
                         },
                         "val": {
                           "i128": {
@@ -646,11 +622,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "MinContribution"
-                            }
-                          ]
+                          "symbol": "MIN"
                         },
                         "val": {
                           "i128": {
@@ -661,11 +633,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "PlatformConfig"
-                            }
-                          ]
+                          "symbol": "PLATFORM"
                         },
                         "val": {
                           "map": [
@@ -690,11 +658,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "SocialLinks"
-                            }
-                          ]
+                          "symbol": "SOCIAL"
                         },
                         "val": {
                           "vec": [
@@ -709,11 +673,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Status"
-                            }
-                          ]
+                          "symbol": "STATUS"
                         },
                         "val": {
                           "vec": [
@@ -725,11 +685,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Title"
-                            }
-                          ]
+                          "symbol": "TITLE"
                         },
                         "val": {
                           "string": "Test Campaign"
@@ -737,11 +693,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Token"
-                            }
-                          ]
+                          "symbol": "TOKEN"
                         },
                         "val": {
                           "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
@@ -749,11 +701,7 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "TotalRaised"
-                            }
-                          ]
+                          "symbol": "TOTAL"
                         },
                         "val": {
                           "i128": {
