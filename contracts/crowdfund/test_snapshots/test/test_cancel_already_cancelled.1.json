@@ -286,6 +286,23 @@
                     "storage": [
                       {
                         "key": {
+                          "vec": [
+                            {
+                              "symbol": "ContributorCount"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u32": 0
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "Creator"
+                            }
+                          ]
                           "symbol": "CREATOR"
                         },
                         "val": {
@@ -321,6 +338,26 @@
                       },
                       {
                         "key": {
+                          "vec": [
+                            {
+                              "symbol": "LargestContribution"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "i128": {
+                            "hi": 0,
+                            "lo": 0
+                          }
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "MinContribution"
+                            }
+                          ]
                           "symbol": "MIN"
                         },
                         "val": {

@@ -74,6 +74,16 @@ pub struct PlatformConfig {
 #[contracttype]
 pub enum DataKey {
     Contribution(Address),
+    Status,
+    MinContribution,
+    Admin,
+    Title,
+    Description,
+    SocialLinks,
+    PlatformConfig,
+    ContributorPresence(Address),
+    ContributorCount,
+    LargestContribution,
 }
 
 // ── Contract Errors ───────────────────────────────────────────────────────────
@@ -137,6 +147,10 @@ impl CrowdfundContract {
             env.storage().instance().set(&KEY_SOCIAL, &links);
         }
 
+        env.storage().instance().set(&DataKey::TotalRaised, &0i128);
+        env.storage().instance().set(&DataKey::Status, &Status::Active);
+        env.storage().instance().set(&DataKey::ContributorCount, &0u32);
+        env.storage().instance().set(&DataKey::LargestContribution, &0i128);
         env.storage().instance().set(&KEY_TOTAL, &0i128);
         env.storage().instance().set(&KEY_STATUS, &Status::Active);
 
@@ -179,6 +193,18 @@ impl CrowdfundContract {
         let new_total = total.checked_add(amount).ok_or(ContractError::Overflow)?;
         env.storage().instance().set(&KEY_TOTAL, &new_total);
 
+        let presence_key = DataKey::ContributorPresence(contributor.clone());
+        let is_present: bool = env.storage().persistent().get(&presence_key).unwrap_or(false);
+        if !is_present {
+            env.storage().persistent().set(&presence_key, &true);
+            env.storage().persistent().extend_ttl(&presence_key, 100, 100);
+            let count: u32 = env.storage().instance().get(&DataKey::ContributorCount).unwrap();
+            env.storage().instance().set(&DataKey::ContributorCount, &(count + 1));
+        }
+
+        let largest: i128 = env.storage().instance().get(&DataKey::LargestContribution).unwrap();
+        if new_amount > largest {
+            env.storage().instance().set(&DataKey::LargestContribution, &new_amount);
         let mut contributors: Vec<Address> = env
             .storage()
             .persistent()
@@ -368,6 +394,10 @@ impl CrowdfundContract {
     }
 
     pub fn get_stats(env: Env) -> CampaignStats {
+        let total_raised: i128 = env.storage().instance().get(&DataKey::TotalRaised).unwrap_or(0);
+        let goal: i128 = env.storage().instance().get(&DataKey::Goal).unwrap();
+        let contributor_count: u32 = env.storage().instance().get(&DataKey::ContributorCount).unwrap_or(0);
+        let largest_contribution: i128 = env.storage().instance().get(&DataKey::LargestContribution).unwrap_or(0);
         let total_raised: i128 = env.storage().instance().get(&KEY_TOTAL).unwrap_or(0);
         let goal: i128 = env.storage().instance().get(&KEY_GOAL).unwrap();
         let contributors: Vec<Address> = env
@@ -383,23 +413,10 @@ impl CrowdfundContract {
             0
         };
 
-        let contributor_count = contributors.len();
-        let (average_contribution, largest_contribution) = if contributor_count == 0 {
-            (0, 0)
+        let average_contribution = if contributor_count == 0 {
+            0
         } else {
-            let avg = total_raised / contributor_count as i128;
-            let mut largest = 0i128;
-            for c in contributors.iter() {
-                let amt: i128 = env
-                    .storage()
-                    .persistent()
-                    .get(&DataKey::Contribution(c))
-                    .unwrap_or(0);
-                if amt > largest {
-                    largest = amt;
-                }
-            }
-            (avg, largest)
+            total_raised / contributor_count as i128
         };
 
         CampaignStats {
