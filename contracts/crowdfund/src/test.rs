@@ -22,12 +22,12 @@ fn test_cancel_happy_path() {
     let goal = 10000;
     let min_contribution = 100;
 
-    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None, &None);
+    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None, &None, &None);
 
     // Some contributions
     let user1 = Address::generate(&env);
     token_admin_client.mint(&user1, &500);
-    client.contribute(&user1, &500);
+    client.contribute(&user1, &500, &token_id);
 
     assert_eq!(client.total_raised(), 500);
 
@@ -48,7 +48,7 @@ fn test_cancel_happy_path() {
 
     // Verify contributing fails after cancel
     token_admin_client.mint(&user1, &100);
-    let result = client.try_contribute(&user1, &100);
+    let result = client.try_contribute(&user1, &100, &token_id);
     assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
 
     // Refund should work now even before deadline
@@ -73,7 +73,7 @@ fn test_cancel_already_cancelled() {
     let mut links = Vec::new(&env);
     links.push_back(String::from_str(&env, "https://example.com"));
     
-    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &Some(links), &None);
+    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &Some(links), &None, &None);
     client.cancel_campaign();
 
     let result = client.try_cancel_campaign();
@@ -96,7 +96,7 @@ fn test_update_metadata() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
-    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "Old Title"), &String::from_str(&env, "Old Description"), &None, &None);
+    client.initialize(&creator, &token_id, &1000, &1000, &10, &String::from_str(&env, "Old Title"), &String::from_str(&env, "Old Description"), &None, &None, &None);
 
     let mut new_links = Vec::new(&env);
     new_links.push_back(String::from_str(&env, "https://new.com"));
@@ -127,8 +127,6 @@ fn test_update_metadata() {
     assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
 }
 
-#[test]
-fn test_is_contributor() {
 // ══════════════════════════════════════════════════════════════════════════════
 // COMPREHENSIVE HAPPY PATH TEST SUITE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -140,6 +138,14 @@ fn test_full_campaign_lifecycle_success() {
 
     let creator = Address::generate(&env);
     let token_admin = Address::generate(&env);
+
+    let token_a_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_b_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_c_id = env.register_stellar_asset_contract(token_admin.clone());
+
+    let token_a_admin = token::StellarAssetClient::new(&env, &token_a_id);
+    let token_b_admin = token::StellarAssetClient::new(&env, &token_b_id);
+    let token_c_admin = token::StellarAssetClient::new(&env, &token_c_id);
     let token_id = env.register_stellar_asset_contract(token_admin);
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
@@ -253,6 +259,38 @@ fn test_multiple_contributions_same_user() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
+    let mut whitelist = Vec::new(&env);
+    whitelist.push_back(token_a_id.clone());
+    whitelist.push_back(token_b_id.clone());
+
+    client.initialize(
+        &creator, &token_a_id, &1000, &1000, &1,
+        &String::from_str(&env, "T"), &String::from_str(&env, "D"),
+        &None, &None, &Some(whitelist.clone()),
+    );
+
+    // accepted_tokens view returns the whitelist
+    assert_eq!(client.accepted_tokens(), whitelist);
+
+    // token_a is accepted
+    let user = Address::generate(&env);
+    token_a_admin.mint(&user, &100);
+    client.contribute(&user, &100, &token_a_id);
+    assert_eq!(client.total_raised(), 100);
+
+    // token_b is accepted
+    token_b_admin.mint(&user, &100);
+    client.contribute(&user, &100, &token_b_id);
+    assert_eq!(client.total_raised(), 200);
+
+    // token_c is NOT accepted
+    token_c_admin.mint(&user, &100);
+    let result = client.try_contribute(&user, &100, &token_c_id);
+    assert_eq!(result.err(), Some(Ok(ContractError::TokenNotAccepted)));
+}
+
+#[test]
+fn test_no_whitelist_rejects_non_default_token() {
     client.initialize(
         &creator,
         &token_id,
@@ -465,6 +503,9 @@ fn test_refund_after_missed_goal() {
 
     let creator = Address::generate(&env);
     let token_admin = Address::generate(&env);
+    let token_a_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_b_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_b_admin = token::StellarAssetClient::new(&env, &token_b_id);
     let token_id = env.register_stellar_asset_contract(token_admin);
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
@@ -472,6 +513,17 @@ fn test_refund_after_missed_goal() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
+    // No whitelist — only default token accepted
+    client.initialize(
+        &creator, &token_a_id, &1000, &1000, &1,
+        &String::from_str(&env, "T"), &String::from_str(&env, "D"),
+        &None, &None, &None,
+    );
+
+    let user = Address::generate(&env);
+    token_b_admin.mint(&user, &100);
+    let result = client.try_contribute(&user, &100, &token_b_id);
+    assert_eq!(result.err(), Some(Ok(ContractError::TokenNotAccepted)));
     let goal = 10_000i128;
     let deadline = 1000u64;
 
