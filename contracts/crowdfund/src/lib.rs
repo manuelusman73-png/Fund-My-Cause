@@ -42,7 +42,7 @@ const KEY_PLATFORM: Symbol = symbol_short!("PLATFORM");
 
 // ── Data Types ────────────────────────────────────────────────────────────────
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 #[contracttype]
 pub enum Status {
     Active,
@@ -363,6 +363,10 @@ impl CrowdfundContract {
         env.storage().instance().get(&KEY_CREATOR).unwrap()
     }
 
+    pub fn status(env: Env) -> Status {
+        env.storage().instance().get(&DataKey::Status).unwrap()
+    }
+
     pub fn goal(env: Env) -> i128 {
         env.storage().instance().get(&KEY_GOAL).unwrap()
     }
@@ -376,6 +380,14 @@ impl CrowdfundContract {
             .persistent()
             .get(&DataKey::Contribution(contributor))
             .unwrap_or(0)
+    }
+
+    pub fn is_contributor(env: Env, address: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::Contribution(address))
+            .unwrap_or(0)
+            > 0
     }
 
     pub fn min_contribution(env: Env) -> i128 {

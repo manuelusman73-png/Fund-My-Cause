@@ -436,6 +436,7 @@
             "key": {
               "vec": [
                 {
+                  "symbol": "ContributorPresence"
                   "symbol": "Contribution"
                 },
                 {
@@ -456,6 +457,7 @@
                 "key": {
                   "vec": [
                     {
+                      "symbol": "ContributorPresence"
                       "symbol": "Contribution"
                     },
                     {
@@ -465,6 +467,7 @@
                 },
                 "durability": "persistent",
                 "val": {
+                  "bool": true
                   "i128": {
                     "hi": 0,
                     "lo": 0
@@ -502,6 +505,23 @@
                     "storage": [
                       {
                         "key": {
+                          "vec": [
+                            {
+                              "symbol": "ContributorCount"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u32": 1
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "Creator"
+                            }
+                          ]
                           "symbol": "CREATOR"
                         },
                         "val": {
@@ -537,6 +557,26 @@
                       },
                       {
                         "key": {
+                          "vec": [
+                            {
+                              "symbol": "LargestContribution"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "i128": {
+                            "hi": 0,
+                            "lo": 500
+                          }
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "MinContribution"
+                            }
+                          ]
                           "symbol": "MIN"
                         },
                         "val": {

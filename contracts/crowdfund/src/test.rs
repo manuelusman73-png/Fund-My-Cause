@@ -127,8 +127,6 @@ fn test_update_metadata() {
     assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
 }
 
-#[test]
-fn test_token_whitelist() {
 // ══════════════════════════════════════════════════════════════════════════════
 // COMPREHENSIVE HAPPY PATH TEST SUITE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -155,6 +153,30 @@ fn test_full_campaign_lifecycle_success() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
+    let deadline = 1000;
+    let goal = 10000;
+    let min_contribution = 100;
+
+    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None, &None);
+
+    // Test non-contributor
+    let non_contributor = Address::generate(&env);
+    assert_eq!(client.is_contributor(&non_contributor), false);
+
+    // Test contributor
+    let contributor = Address::generate(&env);
+    token_admin_client.mint(&contributor, &500);
+    client.contribute(&contributor, &500);
+    assert_eq!(client.is_contributor(&contributor), true);
+
+    // Test after refund
+    client.cancel_campaign();
+    client.refund_single(&contributor);
+    assert_eq!(client.is_contributor(&contributor), false);
+}
+
+#[test]
+fn test_status() {
     let goal = 10_000i128;
     let deadline = 2000u64;
     let min_contribution = 100i128;
@@ -312,6 +334,7 @@ fn test_exact_goal_hit() {
 
     let creator = Address::generate(&env);
     let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
     let token_id = env.register_stellar_asset_contract(token_admin);
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
@@ -319,6 +342,35 @@ fn test_exact_goal_hit() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
+    let goal = 500i128;
+    let deadline = 1000u64;
+
+    client.initialize(&creator, &token_id, &goal, &deadline, &1i128,
+        &String::from_str(&env, "T"), &String::from_str(&env, "D"), &None, &None);
+
+    // Active
+    assert_eq!(client.status(), Status::Active);
+
+    // Cancelled
+    client.cancel_campaign();
+    assert_eq!(client.status(), Status::Cancelled);
+
+    // Re-initialize a fresh contract for Successful status
+    let contract_id2 = env.register_contract(None, CrowdfundContract);
+    let client2 = CrowdfundContractClient::new(&env, &contract_id2);
+    client2.initialize(&creator, &token_id, &goal, &deadline, &1i128,
+        &String::from_str(&env, "T"), &String::from_str(&env, "D"), &None, &None);
+
+    let contributor = Address::generate(&env);
+    token_admin_client.mint(&contributor, &goal);
+    client2.contribute(&contributor, &goal);
+
+    env.ledger().set_timestamp(deadline + 1);
+    client2.withdraw();
+    assert_eq!(client2.status(), Status::Successful);
+
+    // Refunded status — set via cancel then refund doesn't change status to Refunded;
+    // Status::Refunded is not currently set by any code path, so we only test the three reachable variants.
     let goal = 7_777i128;
     let deadline = 1000u64;
 
@@ -366,6 +418,8 @@ fn test_platform_fee_deduction() {
     env.mock_all_auths();
 
     let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract(token_admin);
     let platform_address = Address::generate(&env);
     let token_admin = Address::generate(&env);
     let token_id = env.register_stellar_asset_contract(token_admin);
@@ -375,6 +429,26 @@ fn test_platform_fee_deduction() {
     let contract_id = env.register_contract(None, CrowdfundContract);
     let client = CrowdfundContractClient::new(&env, &contract_id);
 
+    let deadline = 1000;
+    let goal = 10000;
+    let min_contribution = 100;
+
+    client.initialize(&creator, &token_id, &goal, &deadline, &min_contribution, &String::from_str(&env, "My Title"), &String::from_str(&env, "My Description"), &None, &None);
+
+    // Test non-contributor
+    let non_contributor = Address::generate(&env);
+    assert_eq!(client.is_contributor(&non_contributor), false);
+
+    // Test contributor
+    let contributor = Address::generate(&env);
+    token_admin_client.mint(&contributor, &500);
+    client.contribute(&contributor, &500);
+    assert_eq!(client.is_contributor(&contributor), true);
+
+    // Test after refund
+    client.cancel_campaign();
+    client.refund_single(&contributor);
+    assert_eq!(client.is_contributor(&contributor), false);
     let goal = 10_000i128;
     let deadline = 1000u64;
     let fee_bps = 500u32; // 5% fee
