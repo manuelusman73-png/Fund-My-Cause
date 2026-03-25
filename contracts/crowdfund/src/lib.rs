@@ -74,6 +74,22 @@ pub struct PlatformConfig {
 // DataKey now only used for variants that carry data
 #[derive(Clone)]
 #[contracttype]
+pub struct CampaignInfo {
+    pub creator: Address,
+    pub token: Address,
+    pub goal: i128,
+    pub deadline: u64,
+    pub min_contribution: i128,
+    pub title: String,
+    pub description: String,
+    pub status: Status,
+    pub has_platform_config: bool,
+    pub platform_fee_bps: u32,
+    pub platform_address: Address,
+}
+
+#[derive(Clone)]
+#[contracttype]
 pub enum DataKey {
     Contribution(Address),
     Status,
@@ -537,6 +553,48 @@ impl CrowdfundContract {
             contributor_count,
             average_contribution,
             largest_contribution,
+        }
+    }
+
+    pub fn get_campaign_info(env: Env) -> CampaignInfo {
+        let creator: Address = env.storage().instance().get(&DataKey::Creator).unwrap();
+        let token: Address = env.storage().instance().get(&DataKey::Token).unwrap();
+        let goal: i128 = env.storage().instance().get(&DataKey::Goal).unwrap();
+        let deadline: u64 = env.storage().instance().get(&DataKey::Deadline).unwrap();
+        let min_contribution: i128 = env.storage().instance().get(&DataKey::MinContribution).unwrap();
+        let title: String = env.storage()
+            .instance()
+            .get(&DataKey::Title)
+            .unwrap_or_else(|| String::from_str(&env, ""));
+        let description: String = env.storage()
+            .instance()
+            .get(&DataKey::Description)
+            .unwrap_or_else(|| String::from_str(&env, ""));
+        let status: Status = env.storage().instance().get(&DataKey::Status).unwrap();
+        
+        let platform_config: Option<PlatformConfig> = env.storage()
+            .instance()
+            .get(&DataKey::PlatformConfig);
+
+        let (has_platform_config, platform_fee_bps, platform_address) = if let Some(config) = platform_config {
+            (true, config.fee_bps, config.address)
+        } else {
+            // Default values when no platform config exists
+            (false, 0, creator.clone())
+        };
+
+        CampaignInfo {
+            creator,
+            token,
+            goal,
+            deadline,
+            min_contribution,
+            title,
+            description,
+            status,
+            has_platform_config,
+            platform_fee_bps,
+            platform_address,
         }
     }
 }
