@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
+import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
+import { useToast } from "@/components/ui/Toast";
 
 interface PledgeModalProps {
   campaignTitle: string;
@@ -11,17 +13,40 @@ interface PledgeModalProps {
 
 export function PledgeModal({ campaignTitle, onClose }: PledgeModalProps) {
   const { address, connect } = useWallet();
+  const { addToast } = useToast();
   const [amount, setAmount] = useState("");
-  const [status, setStatus] = useState<"idle" | "pending" | "done">("idle");
+  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
+  const [txHash, setTxHash] = useState<string>("");
 
   const handlePledge = async () => {
     if (!address) {
       await connect();
       return;
     }
-    setStatus("pending");
-    // TODO: invoke Soroban contract contribute()
-    setTimeout(() => setStatus("done"), 1500);
+    
+    // Simulate transaction lifecycle
+    setTxStatus("signing");
+    
+    setTimeout(() => {
+      setTxStatus("submitting");
+      
+      setTimeout(() => {
+        setTxStatus("confirming");
+        
+        setTimeout(() => {
+          // Simulate successful transaction with a mock hash
+          const mockHash = "a1b2c3d4e5f6789012345678901234567890123456789012345678901234";
+          setTxHash(mockHash);
+          setTxStatus("success");
+          addToast("Pledge submitted successfully!", "success", mockHash);
+        }, 1500);
+      }, 1500);
+    }, 1000);
+  };
+
+  const handleDismiss = () => {
+    setTxStatus("idle");
+    setTxHash("");
   };
 
   return (
@@ -32,8 +57,14 @@ export function PledgeModal({ campaignTitle, onClose }: PledgeModalProps) {
           <button onClick={onClose}><X size={20} /></button>
         </div>
 
-        {status === "done" ? (
-          <p className="text-green-400 text-center py-4">Pledge submitted successfully!</p>
+        {txStatus === "success" || txStatus === "error" ? (
+          <TransactionStatus 
+            status={txStatus} 
+            txHash={txHash}
+            onDismiss={handleDismiss}
+          />
+        ) : txStatus !== "idle" ? (
+          <TransactionStatus status={txStatus} />
         ) : (
           <>
             <input
@@ -45,10 +76,10 @@ export function PledgeModal({ campaignTitle, onClose }: PledgeModalProps) {
             />
             <button
               onClick={handlePledge}
-              disabled={status === "pending"}
+              disabled={txStatus !== "idle"}
               className="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded-xl font-medium transition disabled:opacity-50"
             >
-              {status === "pending" ? "Processing..." : address ? "Confirm Pledge" : "Connect Wallet to Pledge"}
+              {txStatus !== "idle" ? "Processing..." : address ? "Confirm Pledge" : "Connect Wallet to Pledge"}
             </button>
           </>
         )}

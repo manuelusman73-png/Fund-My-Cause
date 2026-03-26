@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { fetchCampaign } from "@/lib/soroban";
 import { CampaignActions } from "./CampaignActions";
 
@@ -49,7 +50,7 @@ export default async function CampaignDetailPage(
   const goalMet = campaign.raised >= campaign.goal;
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Navbar />
 
       {/* Hero image */}
@@ -67,9 +68,9 @@ export default async function CampaignDetailPage(
         {/* Title + creator */}
         <div>
           <h1 className="text-3xl font-bold mb-2">{campaign.title}</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-600 dark:text-gray-500 text-sm">
             by{" "}
-            <span className="font-mono text-gray-400" title={campaign.creator}>
+            <span className="font-mono text-gray-500 dark:text-gray-400" title={campaign.creator}>
               {truncate(campaign.creator)}
             </span>
           </p>
@@ -78,32 +79,35 @@ export default async function CampaignDetailPage(
         {/* Progress */}
         <div className="space-y-2">
           <ProgressBar progress={progress} />
-          <div className="flex justify-between text-sm text-gray-400">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
             <span>{campaign.raised.toLocaleString()} XLM raised</span>
             <span>{campaign.goal.toLocaleString()} XLM goal</span>
           </div>
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="bg-gray-900 rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4">
             <p className="text-xl font-semibold">{campaign.contributorCount}</p>
             <p className="text-gray-500 text-xs mt-1">Contributors</p>
           </div>
-          <div className="bg-gray-900 rounded-xl p-4">
+          <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4">
             <p className="text-xl font-semibold">
               {campaign.averageContribution.toLocaleString()} XLM
             </p>
             <p className="text-gray-500 text-xs mt-1">Avg. contribution</p>
           </div>
-          <div className="bg-gray-900 rounded-xl p-4">
+          <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4">
             <CountdownTimer deadline={campaign.deadline} />
             <p className="text-gray-500 text-xs mt-1">Remaining</p>
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-gray-300 leading-relaxed">{campaign.description}</p>
+        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{campaign.description}</p>
+
+        {/* Share buttons */}
+        <ShareButton campaignId={id} campaignTitle={campaign.title} />
 
         {/* Social links */}
         {campaign.socialLinks.length > 0 && (
@@ -116,7 +120,7 @@ export default async function CampaignDetailPage(
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-400 hover:underline text-sm break-all"
+                    className="text-indigo-600 dark:text-indigo-400 hover:underline text-sm break-all"
                   >
                     {url}
                   </a>

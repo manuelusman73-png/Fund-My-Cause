@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { buildInitializeTx, submitSignedTx } from "@/lib/soroban";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { uploadToPinata } from "@/lib/pinata";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,8 @@ const INITIAL: FormData = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const inputCls =
-  "w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500";
-const labelCls = "block text-sm text-gray-400 mb-1";
+  "w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500";
+const labelCls = "block text-sm text-gray-600 dark:text-gray-400 mb-1";
 
 function Field({
   label,
@@ -95,24 +96,54 @@ function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
   );
 }
 
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+
 function Step2({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const [preview, setPreview] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) { setUploadError("Only PNG, JPG, or WebP allowed."); return; }
+    if (file.size > MAX_SIZE) { setUploadError("File must be under 5 MB."); return; }
+
+    setUploadError(null);
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
+    try {
+      const cid = await uploadToPinata(file);
+      set("imageUrl", cid);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <Field label="Image URL or IPFS URI">
-        <input className={inputCls} placeholder="https:// or ipfs://" value={data.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} />
+      <Field label="Campaign Image (PNG / JPG / WebP, max 5 MB)">
+        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-700 rounded-xl cursor-pointer hover:border-indigo-500 transition">
+          <span className="text-sm text-gray-400">
+            {uploading ? "Uploading…" : "Click to select a file"}
+          </span>
+          <input type="file" accept={ACCEPTED.join(",")} className="hidden" onChange={handleFile} disabled={uploading} />
+        </label>
       </Field>
-      {data.imageUrl && (
+
+      {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
+
+      {preview && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={data.imageUrl}
-          alt="preview"
-          className="w-full h-48 object-cover rounded-xl border border-gray-700"
-          onError={(e) => (e.currentTarget.style.display = "none")}
-        />
+        <img src={preview} alt="preview" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
       )}
-      <p className="text-xs text-gray-500">
-        Image is stored off-chain. Paste a public URL or an IPFS gateway link.
-      </p>
+
+      {data.imageUrl && !uploading && (
+        <p className="text-xs text-gray-500 break-all">Stored as: {data.imageUrl}</p>
+      )}
     </div>
   );
 }
@@ -251,14 +282,14 @@ export default function CreateCampaignPage() {
 
   if (!address) {
     return (
-      <main className="min-h-screen bg-gray-950 text-white">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
         <Navbar />
         <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
-          <p className="text-gray-400">Connect your wallet to create a campaign.</p>
+          <p className="text-gray-600 dark:text-gray-400">Connect your wallet to create a campaign.</p>
           <button
             onClick={connect}
             disabled={isConnecting}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-medium transition disabled:opacity-50"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-medium transition disabled:opacity-50 text-white"
           >
             {isConnecting && <Loader2 size={16} className="animate-spin" />}
             Connect Wallet
@@ -272,13 +303,13 @@ export default function CreateCampaignPage() {
 
   if (txStatus === "success") {
     return (
-      <main className="min-h-screen bg-gray-950 text-white">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
         <Navbar />
         <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center px-6">
-          <CheckCircle2 size={48} className="text-green-400" />
+          <CheckCircle2 size={48} className="text-green-500 dark:text-green-400" />
           <h2 className="text-2xl font-bold">Campaign Deployed!</h2>
-          <p className="text-gray-400 text-sm break-all">Tx: {txHash}</p>
-          <button onClick={() => router.push("/")} className="mt-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl transition">
+          <p className="text-gray-600 dark:text-gray-400 text-sm break-all">Tx: {txHash}</p>
+          <button onClick={() => router.push("/")} className="mt-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl transition text-white">
             Back to Home
           </button>
         </div>
@@ -289,7 +320,7 @@ export default function CreateCampaignPage() {
   // ── Form ────────────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Navbar />
 
       <div className="max-w-xl mx-auto px-6 py-12">
@@ -306,7 +337,7 @@ export default function CreateCampaignPage() {
                       ? "bg-indigo-600 text-white"
                       : i === step
                       ? "bg-indigo-500 text-white ring-2 ring-indigo-300"
-                      : "bg-gray-800 text-gray-500"
+                      : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-500"
                   }`}
                 >
                   {i < step ? "✓" : i + 1}
@@ -314,14 +345,14 @@ export default function CreateCampaignPage() {
                 <span className="text-xs text-gray-500 hidden sm:block">{label}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-px ${i < step ? "bg-indigo-600" : "bg-gray-700"}`} />
+                <div className={`flex-1 h-px ${i < step ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"}`} />
               )}
             </React.Fragment>
           ))}
         </div>
 
         {/* Step content */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-6">
+        <div className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
           <h2 className="text-lg font-semibold">{STEPS[step]}</h2>
 
           {step === 0 && <Step1 data={data} set={set} />}
@@ -330,11 +361,11 @@ export default function CreateCampaignPage() {
           {step === 3 && <Step4 data={data} />}
 
           {validationError && (
-            <p className="text-red-400 text-sm">{validationError}</p>
+            <p className="text-red-500 dark:text-red-400 text-sm">{validationError}</p>
           )}
 
           {txStatus === "error" && txError && (
-            <div className="flex items-start gap-2 text-red-400 text-sm bg-red-950/40 border border-red-800 rounded-xl p-3">
+            <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3">
               <XCircle size={16} className="mt-0.5 shrink-0" />
               {txError}
             </div>
@@ -345,7 +376,7 @@ export default function CreateCampaignPage() {
             <button
               onClick={back}
               disabled={step === 0}
-              className="px-4 py-2 rounded-xl text-sm text-gray-400 hover:text-white disabled:opacity-30 transition"
+              className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
             >
               Back
             </button>
@@ -353,7 +384,7 @@ export default function CreateCampaignPage() {
             {step < STEPS.length - 1 ? (
               <button
                 onClick={next}
-                className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition"
+                className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
               >
                 Next
               </button>
@@ -361,7 +392,7 @@ export default function CreateCampaignPage() {
               <button
                 onClick={deploy}
                 disabled={txStatus === "pending"}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 text-white"
               >
                 {txStatus === "pending" && <Loader2 size={16} className="animate-spin" />}
                 {txStatus === "pending" ? "Deploying..." : "Sign & Deploy"}

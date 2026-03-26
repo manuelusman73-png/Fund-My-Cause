@@ -62,7 +62,7 @@ export function CampaignActions({
   }
 
   if (txStatus === "done") {
-    return <p className="text-green-400 text-center py-4">Transaction submitted successfully!</p>;
+    return <p className="text-green-500 dark:text-green-400 text-center py-4">Transaction submitted successfully!</p>;
   }
 
   return (
@@ -72,7 +72,7 @@ export function CampaignActions({
         {status === "Active" && !deadlinePassed && (
           <button
             onClick={() => (address ? setPledging(true) : connect())}
-            className="w-full py-3 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 transition"
+            className="w-full py-3 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 transition text-white"
           >
             {address ? "Pledge Now" : "Connect Wallet to Pledge"}
           </button>
@@ -83,7 +83,7 @@ export function CampaignActions({
           <button
             onClick={handleRefund}
             disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition"
+            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition text-white"
           >
             {txStatus === "pending" ? "Processing…" : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
           </button>
@@ -94,14 +94,14 @@ export function CampaignActions({
           <button
             onClick={handleWithdraw}
             disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 transition"
+            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 transition text-white"
           >
             {txStatus === "pending" ? "Processing…" : "Withdraw Funds"}
           </button>
         )}
 
         {txStatus === "error" && (
-          <p className="text-red-400 text-sm text-center">Transaction failed. Please try again.</p>
+          <p className="text-red-500 dark:text-red-400 text-sm text-center">Transaction failed. Please try again.</p>
         )}
       </div>
 

@@ -3,32 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { CampaignCard } from "@/components/ui/CampaignCard";
 import { fetchAllCampaigns } from "@/lib/soroban";
 import type { Campaign } from "@/types/campaign";
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-
-function CampaignSkeleton() {
-  return (
-    <div className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 animate-pulse">
-      <div className="w-full h-48 bg-gray-800" />
-      <div className="p-5 space-y-3">
-        <div className="h-5 bg-gray-800 rounded w-3/4" />
-        <div className="h-4 bg-gray-800 rounded w-full" />
-        <div className="h-4 bg-gray-800 rounded w-5/6" />
-        <div className="h-2 bg-gray-800 rounded-full" />
-        <div className="h-4 bg-gray-800 rounded w-1/2" />
-        <div className="h-9 bg-gray-800 rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
-function GridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, i) => <CampaignSkeleton key={i} />)}
-    </div>
-  );
-}
+import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
@@ -209,13 +184,13 @@ function CampaignsInner() {
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         {/* Search */}
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Search campaigns..."
             value={query}
             onChange={(e) => setParam("q", e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
 
@@ -223,7 +198,7 @@ function CampaignsInner() {
         <select
           value={sort}
           onChange={(e) => setParam("sort", e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+          className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
         >
           <option value="newest">Newest</option>
           <option value="most-funded">Most Funded</option>
@@ -240,7 +215,7 @@ function CampaignsInner() {
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               filter === tab.value
                 ? "bg-indigo-600 text-white"
-                : "bg-gray-800 text-gray-400 hover:text-white"
+                : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             {tab.label}
@@ -318,11 +293,11 @@ function CampaignsInner() {
 
 export default function CampaignsPage() {
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Navbar />
       <section className="max-w-6xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold mb-8">Active Campaigns</h1>
-        <Suspense fallback={<GridSkeleton />}>
+        <Suspense fallback={<LoadingSkeletonGrid count={6} />}>
           {/* @ts-expect-error async server component */}
           <CampaignGrid />
         </Suspense>
