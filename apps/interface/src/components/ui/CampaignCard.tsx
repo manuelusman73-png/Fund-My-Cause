@@ -1,43 +1,60 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
-import { PledgeModal } from "@/components/ui/PledgeModal";
 import type { Campaign } from "@/types/campaign";
 
-export function CampaignCard({ campaign }: { campaign: Campaign }) {
-  const [pledging, setPledging] = useState(false);
+export interface CampaignCardProps {
+  campaign: Campaign;
+  onPledge: (id: string) => void;
+}
+
+function StatusBadge({ status }: { status: "funded" | "ended" }) {
+  return (
+    <span
+      className={`absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold ${
+        status === "funded"
+          ? "bg-green-500/90 text-white"
+          : "bg-gray-700/90 text-gray-300"
+      }`}
+    >
+      {status === "funded" ? "Funded" : "Ended"}
+    </span>
+  );
+}
+
+export function CampaignCard({ campaign, onPledge }: CampaignCardProps) {
   const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const isFunded = progress >= 100;
+  const isEnded = !isFunded && new Date(campaign.deadline) < new Date();
+  const isDisabled = isFunded || isEnded;
 
   return (
-    <>
-      <div className="bg-gray-100 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
+    <div className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
+      <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={campaign.image} alt={campaign.title} className="w-full h-48 object-cover" />
-        <div className="p-5 space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{campaign.title}</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">{campaign.description}</p>
-          <ProgressBar progress={progress} />
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>{campaign.raised.toLocaleString()} XLM raised</span>
-            <span>{campaign.goal.toLocaleString()} XLM goal</span>
-          </div>
-          <CountdownTimer deadline={campaign.deadline} />
-          <button
-            className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition text-white"
-            onClick={() => !isFunded && setPledging(true)}
-            disabled={isFunded}
-          >
-            {isFunded ? "Successfully Funded" : "Pledge Now"}
-          </button>
-        </div>
+        {isFunded && <StatusBadge status="funded" />}
+        {isEnded && <StatusBadge status="ended" />}
       </div>
-
-      {pledging && (
-        <PledgeModal campaignTitle={campaign.title} onClose={() => setPledging(false)} />
-      )}
-    </>
+      <div className="p-5 space-y-3">
+        <h2 className="text-lg font-semibold">{campaign.title}</h2>
+        <p className="text-gray-400 text-sm line-clamp-2">{campaign.description}</p>
+        <ProgressBar progress={progress} />
+        <div className="flex justify-between text-sm text-gray-400">
+          <span>{campaign.raised.toLocaleString()} XLM raised</span>
+          <span>{campaign.goal.toLocaleString()} XLM goal</span>
+        </div>
+        <CountdownTimer deadline={campaign.deadline} />
+        <button
+          className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          onClick={() => onPledge(campaign.id)}
+          disabled={isDisabled}
+        >
+          {isFunded ? "Successfully Funded" : isEnded ? "Campaign Ended" : "Pledge Now"}
+        </button>
+      </div>
+    </div>
   );
 }

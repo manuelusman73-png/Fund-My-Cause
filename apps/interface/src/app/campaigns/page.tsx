@@ -47,8 +47,7 @@ async function CampaignGrid() {
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { CampaignCard } from "@/components/ui/CampaignCard";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import { Campaign } from "@/types/campaign";
 import { Search } from "lucide-react";
@@ -230,33 +229,13 @@ function CampaignsInner() {
         <>
           <p className="text-sm text-gray-500 mb-4">{filtered.length} campaign{filtered.length !== 1 ? "s" : ""} found</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {paginated.map((campaign) => {
-              const progress = (campaign.raised / campaign.goal) * 100;
-              const isFunded = progress >= 100;
-              return (
-                <div key={campaign.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={campaign.image} alt={campaign.title} className="w-full h-48 object-cover" />
-                  <div className="p-5 space-y-3">
-                    <h2 className="text-lg font-semibold">{campaign.title}</h2>
-                    <p className="text-gray-400 text-sm">{campaign.description}</p>
-                    <ProgressBar progress={progress} />
-                    <div className="flex justify-between text-sm text-gray-400">
-                      <span>{campaign.raised.toLocaleString()} XLM raised</span>
-                      <span>{campaign.goal.toLocaleString()} XLM goal</span>
-                    </div>
-                    <CountdownTimer deadline={campaign.deadline} />
-                    <button
-                      className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      onClick={() => !isFunded && setPledge(campaign.title)}
-                      disabled={isFunded}
-                    >
-                      {isFunded ? "Successfully Funded" : "Pledge Now"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {paginated.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onPledge={(id) => setPledge(id)}
+              />
+            ))}
           </div>
 
           {/* Pagination */}
@@ -284,7 +263,12 @@ function CampaignsInner() {
         </>
       )}
 
-      {pledge && <PledgeModal campaignTitle={pledge} onClose={() => setPledge(null)} />}
+      {pledge && (
+        <PledgeModal
+          campaignTitle={ALL_CAMPAIGNS.find((c) => c.id === pledge)?.title ?? pledge}
+          onClose={() => setPledge(null)}
+        />
+      )}
     </>
   );
 }
