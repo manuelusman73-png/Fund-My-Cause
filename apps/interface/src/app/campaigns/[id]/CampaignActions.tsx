@@ -3,7 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { PledgeModal } from "@/components/ui/PledgeModal";
+import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
 import { fetchContribution } from "@/lib/soroban";
+import { withdraw, refundSingle, getCampaignStats } from "@/lib/contract";
 
 interface Props {
   contractId: string;
@@ -12,6 +14,10 @@ interface Props {
   goalMet: boolean;
   campaignTitle: string;
   status: "Active" | "Successful" | "Refunded" | "Cancelled";
+  /** Total raised in XLM — used to display payout amount after withdraw. */
+  raisedXlm?: number;
+  /** Minimum contribution in stroops. */
+  minContribution?: bigint;
 }
 
 export function CampaignActions({
@@ -20,12 +26,20 @@ export function CampaignActions({
   deadlinePassed,
   goalMet,
   campaignTitle,
-  status,
+  status: initialStatus,
+  raisedXlm = 0,
+  minContribution,
 }: Props) {
-  const { address, connect, networkMismatch } = useWallet();
+  const { address, connect, signTx, networkMismatch } = useWallet();
   const [pledging, setPledging] = useState(false);
   const [userContribution, setUserContribution] = useState(0);
-  const [txStatus, setTxStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [campaignStatus, setCampaignStatus] = useState(initialStatus);
+  const [raised, setRaised] = useState(raisedXlm);
+
+  // Withdraw / refund transaction state
+  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
+  const [txHash, setTxHash] = useState("");
+  const [txError, setTxError] = useState("");
 
   useEffect(() => {
     if (address) {
@@ -36,40 +50,101 @@ export function CampaignActions({
   }, [address, contractId]);
 
   const isCreator = !!address && address === creator;
-  const canRefund = !!address && deadlinePassed && !goalMet && userContribution > 0;
-  const canWithdraw = isCreator && status === "Successful";
-
-  async function handleRefund() {
-    setTxStatus("pending");
-    try {
-      // TODO: invoke refund_single via Soroban RPC + Freighter signing
-      await new Promise((r) => setTimeout(r, 1500)); // placeholder
-      setTxStatus("done");
-    } catch {
-      setTxStatus("error");
-    }
-  }
+  // Show withdraw only to creator when deadline passed and goal met (or already Successful)
+  const canWithdraw =
+    isCreator &&
+    (campaignStatus === "Successful" || (deadlinePassed && goalMet && campaignStatus === "Active"));
+  const canRefund =
+    !!address && deadlinePassed && !goalMet && userContribution > 0 && campaignStatus !== "Refunded";
 
   async function handleWithdraw() {
-    setTxStatus("pending");
+    if (!address) return;
+    setTxError("");
+    setTxStatus("signing");
     try {
-      // TODO: invoke withdraw via Soroban RPC + Freighter signing
-      await new Promise((r) => setTimeout(r, 1500)); // placeholder
-      setTxStatus("done");
-    } catch {
+      const hash = await withdraw(contractId, address, async (xdr) => {
+        const signed = await signTx(xdr);
+        setTxStatus("submitting");
+        return signed;
+      });
+      setTxStatus("confirming");
+      setTxHash(hash);
+      setTxStatus("success");
+      setCampaignStatus("Successful");
+
+      // Refresh stats to get accurate payout amount
+      try {
+        const stats = await getCampaignStats(contractId);
+        setRaised(Number(stats.totalRaised) / 1e7);
+      } catch {
+        // non-critical
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Withdraw failed.";
+      setTxError(msg);
       setTxStatus("error");
     }
   }
 
-  if (txStatus === "done") {
-    return <p className="text-green-500 dark:text-green-400 text-center py-4">Transaction submitted successfully!</p>;
+  async function handleRefund() {
+    if (!address) return;
+    setTxError("");
+    setTxStatus("signing");
+    try {
+      const hash = await refundSingle(contractId, address, async (xdr) => {
+        const signed = await signTx(xdr);
+        setTxStatus("submitting");
+        return signed;
+      });
+      setTxStatus("confirming");
+      setTxHash(hash);
+      setTxStatus("success");
+      setUserContribution(0);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Refund failed.";
+      setTxError(msg);
+      setTxStatus("error");
+    }
+  }
+
+  function handleDismiss() {
+    setTxStatus("idle");
+    setTxHash("");
+    setTxError("");
+  }
+
+  // Refresh stats after a successful pledge
+  async function handlePledgeSuccess() {
+    try {
+      const stats = await getCampaignStats(contractId);
+      setRaised(Number(stats.totalRaised) / 1e7);
+    } catch {
+      // non-critical
+    }
   }
 
   return (
     <>
       <div className="flex flex-col gap-3">
-        {/* Pledge — always visible when campaign is active */}
-        {status === "Active" && !deadlinePassed && (
+        {/* Transaction status overlay for withdraw / refund */}
+        {txStatus !== "idle" && (
+          <TransactionStatus
+            status={txStatus}
+            txHash={txHash}
+            errorMessage={txError}
+            onDismiss={handleDismiss}
+          />
+        )}
+
+        {/* Success message after withdraw */}
+        {txStatus === "success" && txHash && campaignStatus === "Successful" && raised > 0 && (
+          <p className="text-green-400 text-sm text-center">
+            Funds withdrawn successfully — {raised.toLocaleString()} XLM sent to your wallet.
+          </p>
+        )}
+
+        {/* Pledge — visible while campaign is active */}
+        {campaignStatus === "Active" && !deadlinePassed && txStatus === "idle" && (
           <button
             onClick={() => (address ? setPledging(true) : connect())}
             disabled={networkMismatch}
@@ -80,34 +155,34 @@ export function CampaignActions({
         )}
 
         {/* Claim Refund */}
-        {canRefund && (
+        {canRefund && txStatus === "idle" && (
           <button
             onClick={handleRefund}
-            disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition text-white"
+            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 transition text-white"
           >
-            {txStatus === "pending" ? "Processing…" : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
+            Claim Refund ({userContribution.toLocaleString()} XLM)
           </button>
         )}
 
-        {/* Withdraw Funds */}
-        {canWithdraw && (
+        {/* Withdraw Funds — creator only, after deadline + goal met */}
+        {canWithdraw && txStatus === "idle" && (
           <button
             onClick={handleWithdraw}
-            disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 transition text-white"
+            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 transition text-white"
           >
-            {txStatus === "pending" ? "Processing…" : "Withdraw Funds"}
+            Withdraw Funds
           </button>
-        )}
-
-        {txStatus === "error" && (
-          <p className="text-red-500 dark:text-red-400 text-sm text-center">Transaction failed. Please try again.</p>
         )}
       </div>
 
       {pledging && (
-        <PledgeModal campaignTitle={campaignTitle} onClose={() => setPledging(false)} />
+        <PledgeModal
+          contractId={contractId}
+          campaignTitle={campaignTitle}
+          minContribution={minContribution}
+          onClose={() => setPledging(false)}
+          onSuccess={handlePledgeSuccess}
+        />
       )}
     </>
   );

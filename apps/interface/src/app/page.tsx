@@ -1,15 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
-"use client";
-
-import React, { useState } from "react";
-import Link from "next/link";
-import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
-import { PledgeModal } from "@/components/ui/PledgeModal";
-import { Rocket, Users, Coins, ArrowRight, PlusCircle, CheckCircle2 } from "lucide-react";
+import { Rocket, Users, Coins, ArrowRight, PlusCircle } from "lucide-react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -70,34 +64,6 @@ const HOW_IT_WORKS = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <Navbar />
-      <section className="flex-1 flex flex-col items-center justify-center px-6 text-center space-y-6">
-        <h1 className="text-5xl font-bold">Fund the Future on Stellar</h1>
-        <p className="text-gray-400 text-lg max-w-2xl">
-          Discover and support innovative projects with lightning-fast, secure transactions on the
-          Stellar network.
-        </p>
-        <div className="flex gap-4">
-          <Link
-            href="/campaigns"
-            className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium transition"
-          >
-            Browse Campaigns
-          </Link>
-          <a
-            href="https://developers.stellar.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 rounded-xl border border-gray-700 hover:border-gray-500 font-medium transition"
-          >
-            Learn about Stellar
-          </a>
-        </div>
-      </section>
-  const [pledge, setPledge] = useState<string | null>(null);
-
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       <Navbar />
@@ -167,13 +133,12 @@ export default function Home() {
                     <span>{c.goal.toLocaleString()} XLM goal</span>
                   </div>
                   <CountdownTimer deadline={c.deadline} />
-                  <button
-                    className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    onClick={() => !isFunded && setPledge(c.title)}
-                    disabled={isFunded}
+                  <Link
+                    href={`/campaigns`}
+                    className="block w-full py-2 rounded-xl font-medium text-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition"
                   >
                     {isFunded ? "Successfully Funded" : "Pledge Now"}
-                  </button>
+                  </Link>
                 </div>
               </div>
             );
@@ -210,13 +175,10 @@ export default function Home() {
             <Link href="/create" className="hover:text-white transition">Create</Link>
             <Link href="/dashboard" className="hover:text-white transition">Dashboard</Link>
             <a href="https://developers.stellar.org" target="_blank" rel="noreferrer" className="hover:text-white transition">Stellar Docs</a>
-            <a href="https://github.com/Fidelis900/Fund-My-Cause" target="_blank" rel="noreferrer" className="hover:text-white transition">GitHub</a>
           </div>
           <span>MIT License · Built on Stellar</span>
         </div>
       </footer>
-
-      {pledge && <PledgeModal campaignTitle={pledge} onClose={() => setPledge(null)} />}
     </main>
   );
 }

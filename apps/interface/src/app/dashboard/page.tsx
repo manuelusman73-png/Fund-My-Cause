@@ -114,13 +114,12 @@ function CampaignCard({
   onEdit: (campaign: CampaignData) => void;
   actionPending: string | null;
 }) {
-  const stroopsToXlm = (n: bigint) => (Number(n) / 10_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const progress = campaign.goal > BigInt(0) ? Math.min(100, Number((campaign.totalRaised * BigInt(10000)) / campaign.goal) / 100) : 0;
-  const deadline = new Date(Number(campaign.deadline) * 1000).toLocaleDateString();
-  const now = BigInt(Math.floor(Date.now() / 1000));
-  const isExpired = campaign.deadline < now;
+  const fmtXlm = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const progress = campaign.goal > 0 ? Math.min(100, (campaign.raised / campaign.goal) * 100) : 0;
+  const deadline = new Date(campaign.deadline).toLocaleDateString();
+  const isExpired = new Date(campaign.deadline) < new Date();
 
-  const canWithdraw = campaign.status === "Successful" || (isExpired && campaign.totalRaised >= campaign.goal);
+  const canWithdraw = campaign.status === "Successful" || (isExpired && campaign.raised >= campaign.goal);
   const canCancel = campaign.status === "Active";
   const canEdit = campaign.status === "Active";
   const isPending = (action: string) => actionPending === `${campaign.contractId}:${action}`;
@@ -133,8 +132,8 @@ function CampaignCard({
       </div>
       <ProgressBar progress={progress} />
       <div className="flex justify-between text-sm text-gray-400">
-        <span>{stroopsToXlm(campaign.totalRaised)} XLM raised</span>
-        <span>Goal: {stroopsToXlm(campaign.goal)} XLM</span>
+        <span>{fmtXlm(campaign.raised)} XLM raised</span>
+        <span>Goal: {fmtXlm(campaign.goal)} XLM</span>
       </div>
       <p className="text-xs text-gray-500">Deadline: {deadline}</p>
       <p className="text-xs text-gray-600 truncate font-mono">{campaign.contractId}</p>

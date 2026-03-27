@@ -290,40 +290,38 @@ export async function fetchAllCampaigns(): Promise<CampaignData[]> {
   return results
     .filter((r): r is PromiseFulfilledResult<CampaignData> => r.status === "fulfilled")
     .map((r) => r.value);
-  totalRaised: bigint;
-  goal: bigint;
-  deadline: bigint;
-  status: CampaignStatus;
 }
 
 export async function fetchCampaignData(contractId: string): Promise<CampaignData> {
-  const [stats, deadline] = await Promise.all([
+  const [stats, deadline, title, description] = await Promise.all([
     simulateView(contractId, "get_stats"),
     simulateView(contractId, "deadline"),
+    simulateView(contractId, "title"),
+    simulateView(contractId, "description"),
   ]);
-  // stats is { total_raised, goal, progress_bps, contributor_count, ... }
-  // We also need status — read via a separate view by checking get_stats fields
-  // Status isn't a direct view fn; derive from contract storage via title + stats
-  const title = await simulateView(contractId, "title");
 
-  // Derive status: if progress_bps >= 10000 and deadline passed → Successful
-  // We expose status indirectly; use a best-effort derivation
-  const now = BigInt(Math.floor(Date.now() / 1000));
-  const dl = BigInt(deadline);
-  const raised = BigInt(stats.total_raised ?? 0);
-  const goal = BigInt(stats.goal ?? 0);
+  // stats shape: { total_raised, goal, progress_bps, contributor_count, average_contribution, ... }
+  const raisedStroops = Number(stats.total_raised ?? 0);
+  const goalStroops = Number(stats.goal ?? 0);
+  const deadlineSecs = Number(deadline);
+  const now = Math.floor(Date.now() / 1000);
 
   let status: CampaignStatus = "Active";
-  if (dl < now) {
-    status = raised >= goal ? "Successful" : "Refunded";
+  if (deadlineSecs < now) {
+    status = raisedStroops >= goalStroops ? "Successful" : "Refunded";
   }
 
   return {
     contractId,
     title: String(title),
-    totalRaised: raised,
-    goal,
-    deadline: dl,
+    description: String(description),
+    raised: raisedStroops / 1e7,
+    goal: goalStroops / 1e7,
+    deadline: new Date(deadlineSecs * 1000).toISOString(),
+    creator: "",
+    socialLinks: [],
+    contributorCount: Number(stats.contributor_count ?? 0),
+    averageContribution: Number(stats.average_contribution ?? 0) / 1e7,
     status,
   };
 }
