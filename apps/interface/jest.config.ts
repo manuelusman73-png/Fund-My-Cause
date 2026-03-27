@@ -3,7 +3,10 @@ import type { Config } from "jest";
 const config: Config = {
   testEnvironment: "jsdom",
   transform: { "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }] },
-  moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" },
+  moduleNameMapper: {
+    "^@/lib/soroban$": "<rootDir>/src/__mocks__/lib/soroban.ts",
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
   setupFilesAfterEnv: ["@testing-library/jest-dom"],
 };
 

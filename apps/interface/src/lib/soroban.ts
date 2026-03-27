@@ -161,8 +161,6 @@ export async function submitSignedTx(signedXdr: string): Promise<string> {
 
 import { rpc as SorobanRpc, scValToNative } from "@stellar/stellar-sdk";
 
-const RPC_URL = "https://soroban-testnet.stellar.org";
-
 async function simulateView(contractId: string, method: string, args: xdr.ScVal[] = []) {
   const rpc = new SorobanRpc.Server(RPC_URL);
   const contract = new Contract(contractId);
