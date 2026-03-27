@@ -1,0 +1,88 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ProgressBar snapshots matches snapshot at 0% 1`] = `
+<DocumentFragment>
+  <div
+    class="flex items-center gap-3"
+  >
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="w-full bg-gray-800 rounded-full h-2 relative overflow-hidden"
+      >
+        <div
+          class="h-2 rounded-full transition-all duration-500 bg-indigo-500 "
+          style="width: 0%;"
+        />
+        <div
+          class="absolute right-0 top-0 h-full w-0.5 bg-gray-600 opacity-50"
+        />
+      </div>
+    </div>
+    <span
+      class="text-sm font-medium min-w-[3rem] text-right text-indigo-400"
+    >
+      0%
+    </span>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`ProgressBar snapshots matches snapshot at 50% 1`] = `
+<DocumentFragment>
+  <div
+    class="flex items-center gap-3"
+  >
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="w-full bg-gray-800 rounded-full h-2 relative overflow-hidden"
+      >
+        <div
+          class="h-2 rounded-full transition-all duration-500 bg-indigo-500 "
+          style="width: 50%;"
+        />
+        <div
+          class="absolute right-0 top-0 h-full w-0.5 bg-gray-600 opacity-50"
+        />
+      </div>
+    </div>
+    <span
+      class="text-sm font-medium min-w-[3rem] text-right text-indigo-400"
+    >
+      50%
+    </span>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`ProgressBar snapshots matches snapshot at 100% 1`] = `
+<DocumentFragment>
+  <div
+    class="flex items-center gap-3"
+  >
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="w-full bg-gray-800 rounded-full h-2 relative overflow-hidden"
+      >
+        <div
+          class="h-2 rounded-full transition-all duration-500 bg-green-500 "
+          style="width: 100%;"
+        />
+        <div
+          class="absolute right-0 top-0 h-full w-0.5 bg-gray-600 opacity-50"
+        />
+      </div>
+    </div>
+    <span
+      class="text-sm font-medium min-w-[3rem] text-right text-green-400"
+    >
+      100%
+    </span>
+  </div>
+</DocumentFragment>
+`;
