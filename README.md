@@ -31,6 +31,10 @@ Fund-My-Cause/
 │       ├── src/
 │       │   └── lib.rs      # Core contract logic
 │       └── Cargo.toml
+│   └── registry/           # Soroban registry contract for campaign discovery
+│       ├── src/
+│       │   └── lib.rs      # register/list campaign contract IDs
+│       └── Cargo.toml
 ├── scripts/
 │   └── deploy.sh           # Automated deploy + initialize script
 ├── .github/
@@ -47,22 +51,22 @@ Fund-My-Cause/
 
 The Soroban contract lives in `contracts/crowdfund/src/lib.rs` and exposes the following interface:
 
-| Function | Description |
-|---|---|
-| `initialize(creator, token, goal, deadline, min_contribution, title, description, social_links, platform_config)` | Create a new campaign |
-| `contribute(contributor, amount)` | Pledge tokens before the deadline |
-| `update_metadata(title, description, social_links)` | Update campaign metadata if status is Active |
-| `withdraw()` | Creator claims funds after a successful campaign |
-| `refund_single(contributor)` | Contributor claims their own refund if goal not met |
-| `get_stats()` | Returns `CampaignStats` (total raised, progress bps, contributor count, etc.) |
-| `total_raised()` | Current total raised |
-| `goal()` | Campaign funding goal |
-| `deadline()` | Campaign deadline (ledger timestamp) |
-| `contribution(contributor)` | Contribution amount for a specific address |
-| `min_contribution()` | Minimum allowed contribution |
-| `title()` / `description()` | Campaign metadata |
-| `social_links()` | Campaign social URLs |
-| `version()` | Contract version number |
+| Function                                                                                                          | Description                                                                   |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `initialize(creator, token, goal, deadline, min_contribution, title, description, social_links, platform_config)` | Create a new campaign                                                         |
+| `contribute(contributor, amount)`                                                                                 | Pledge tokens before the deadline                                             |
+| `update_metadata(title, description, social_links)`                                                               | Update campaign metadata if status is Active                                  |
+| `withdraw()`                                                                                                      | Creator claims funds after a successful campaign                              |
+| `refund_single(contributor)`                                                                                      | Contributor claims their own refund if goal not met                           |
+| `get_stats()`                                                                                                     | Returns `CampaignStats` (total raised, progress bps, contributor count, etc.) |
+| `total_raised()`                                                                                                  | Current total raised                                                          |
+| `goal()`                                                                                                          | Campaign funding goal                                                         |
+| `deadline()`                                                                                                      | Campaign deadline (ledger timestamp)                                          |
+| `contribution(contributor)`                                                                                       | Contribution amount for a specific address                                    |
+| `min_contribution()`                                                                                              | Minimum allowed contribution                                                  |
+| `title()` / `description()`                                                                                       | Campaign metadata                                                             |
+| `social_links()`                                                                                                  | Campaign social URLs                                                          |
+| `version()`                                                                                                       | Contract version number                                                       |
 
 ### Pull-based Refund Model
 
@@ -79,6 +83,7 @@ An optional `PlatformConfig` can be set at initialization with a fee in basis po
 The interface is a Next.js 16 app using the App Router, Tailwind CSS v4, and Freighter wallet integration.
 
 Key components:
+
 - `Navbar` — wallet connect/disconnect via Freighter
 - `ProgressBar` — visual funding progress
 - `CountdownTimer` — live countdown to campaign deadline
@@ -93,11 +98,13 @@ The app uses `@stellar/freighter-api` for wallet connectivity. The `WalletContex
 ## Prerequisites
 
 **Contracts:**
+
 - [Rust](https://rustup.rs/) (stable)
 - `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 - [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli)
 
 **Frontend:**
+
 - Node.js 18+
 - [Freighter browser extension](https://www.freighter.app/)
 
@@ -126,10 +133,13 @@ cargo test --workspace
 
 ```bash
 DEADLINE=$(date -d "+30 days" +%s)
-./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause" null
+./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause" null [REGISTRY_CONTRACT_ID]
 ```
 
-Save the printed `Contract ID` — you'll need it in the frontend config.
+If `REGISTRY_CONTRACT_ID` is omitted, the script deploys a new registry contract.
+After campaign initialization, the script calls `registry.register(campaign_id)` automatically.
+
+Save the printed `Contract ID` and `Registry ID` — you'll need them in frontend config.
 
 ### 4. Run the frontend
 
@@ -146,6 +156,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## CI/CD
 
 GitHub Actions runs on every push/PR to `main`:
+
 - Builds the WASM binary
 - Runs all Rust unit tests
 
