@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { PledgeModal } from "@/components/ui/PledgeModal";
-import { fetchContribution } from "@/lib/soroban";
+import { fetchContribution, type CampaignStatus } from "@/lib/soroban";
 
 interface Props {
   contractId: string;
@@ -11,7 +11,7 @@ interface Props {
   deadlinePassed: boolean;
   goalMet: boolean;
   campaignTitle: string;
-  status: "Active" | "Successful" | "Refunded" | "Cancelled";
+  status: CampaignStatus;
 }
 
 export function CampaignActions({
@@ -25,7 +25,9 @@ export function CampaignActions({
   const { address, connect, networkMismatch } = useWallet();
   const [pledging, setPledging] = useState(false);
   const [userContribution, setUserContribution] = useState(0);
-  const [txStatus, setTxStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [txStatus, setTxStatus] = useState<
+    "idle" | "pending" | "done" | "error"
+  >("idle");
 
   useEffect(() => {
     if (address) {
@@ -36,7 +38,8 @@ export function CampaignActions({
   }, [address, contractId]);
 
   const isCreator = !!address && address === creator;
-  const canRefund = !!address && deadlinePassed && !goalMet && userContribution > 0;
+  const canRefund =
+    !!address && deadlinePassed && !goalMet && userContribution > 0;
   const canWithdraw = isCreator && status === "Successful";
 
   async function handleRefund() {
@@ -62,7 +65,11 @@ export function CampaignActions({
   }
 
   if (txStatus === "done") {
-    return <p className="text-green-500 dark:text-green-400 text-center py-4">Transaction submitted successfully!</p>;
+    return (
+      <p className="text-green-500 dark:text-green-400 text-center py-4">
+        Transaction submitted successfully!
+      </p>
+    );
   }
 
   return (
@@ -86,7 +93,9 @@ export function CampaignActions({
             disabled={txStatus === "pending"}
             className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition text-white"
           >
-            {txStatus === "pending" ? "Processing…" : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
+            {txStatus === "pending"
+              ? "Processing…"
+              : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
           </button>
         )}
 
@@ -102,12 +111,17 @@ export function CampaignActions({
         )}
 
         {txStatus === "error" && (
-          <p className="text-red-500 dark:text-red-400 text-sm text-center">Transaction failed. Please try again.</p>
+          <p className="text-red-500 dark:text-red-400 text-sm text-center">
+            Transaction failed. Please try again.
+          </p>
         )}
       </div>
 
       {pledging && (
-        <PledgeModal campaignTitle={campaignTitle} onClose={() => setPledging(false)} />
+        <PledgeModal
+          campaignTitle={campaignTitle}
+          onClose={() => setPledging(false)}
+        />
       )}
     </>
   );
