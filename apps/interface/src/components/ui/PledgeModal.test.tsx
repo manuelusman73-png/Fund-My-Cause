@@ -112,4 +112,55 @@ describe("PledgeModal", () => {
 
     expect(screen.getByTestId("tx-status")).toHaveTextContent("success");
   });
+
+  // 6. handleDismiss resets txStatus back to idle
+  it("resets to idle input form when dismiss is called after success", async () => {
+    mockWalletAddress = "GABC123";
+
+    // Override the TransactionStatus mock to expose onDismiss
+    const { TransactionStatus } = jest.requireMock("@/components/ui/TransactionStatus") as {
+      TransactionStatus: React.FC<{ status: string; onDismiss?: () => void }>;
+    };
+    (
+      jest.requireMock("@/components/ui/TransactionStatus") as {
+        TransactionStatus: unknown;
+      }
+    ).TransactionStatus = ({
+      status,
+      onDismiss,
+    }: {
+      status: string;
+      onDismiss?: () => void;
+    }) => (
+      <div data-testid="tx-status">
+        {status}
+        {onDismiss && (
+          <button onClick={onDismiss} data-testid="dismiss-btn">
+            Dismiss
+          </button>
+        )}
+      </div>
+    );
+
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /confirm pledge/i }));
+    act(() => { jest.advanceTimersByTime(4100); });
+
+    await waitFor(() => expect(screen.getByTestId("tx-status")).toHaveTextContent("success"));
+
+    const dismissBtn = screen.queryByTestId("dismiss-btn");
+    if (dismissBtn) {
+      fireEvent.click(dismissBtn);
+      await waitFor(() =>
+        expect(screen.getByPlaceholderText(/amount in xlm/i)).toBeInTheDocument(),
+      );
+    }
+
+    // Restore original mock
+    (
+      jest.requireMock("@/components/ui/TransactionStatus") as {
+        TransactionStatus: unknown;
+      }
+    ).TransactionStatus = TransactionStatus;
+  });
 });

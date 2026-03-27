@@ -169,4 +169,123 @@ describe("WalletContext", () => {
 
     expect(screen.getByTestId("is-connecting")).toHaveTextContent("false");
   });
+
+  // 6. Auto-restores address from sessionStorage on mount
+  it("restores address from sessionStorage on mount", async () => {
+    sessionStorage.setItem("fmc:wallet_address", "GSAVED123");
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("address")).toHaveTextContent("GSAVED123");
+    });
+  });
+
+  // 7. connect sets error when requestAccess throws (catch branch)
+  it("sets error when requestAccess throws an exception", async () => {
+    mockRequestAccess.mockRejectedValue(new Error("Network error"));
+
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId("is-connecting")).toHaveTextContent("false"));
+
+    await act(async () => {
+      screen.getByRole("button", { name: "connect" }).click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error")).toHaveTextContent("Failed to connect wallet.");
+    });
+    expect(mockAddToast).toHaveBeenCalledWith("Failed to connect wallet.", "error");
+  });
+
+  // 8. checkNetwork early-returns when getNetworkDetails returns an error
+  it("does not set networkMismatch when getNetworkDetails returns an error", async () => {
+    mockGetNetworkDetails.mockResolvedValue({ error: { message: "Not installed" } });
+    mockRequestAccess.mockResolvedValue({ address: "GABC123", error: undefined });
+
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId("is-connecting")).toHaveTextContent("false"));
+
+    await act(async () => {
+      screen.getByRole("button", { name: "connect" }).click();
+    });
+
+    // connect should still succeed; no crash from checkNetwork error path
+    await waitFor(() =>
+      expect(screen.getByTestId("address")).toHaveTextContent("GABC123"),
+    );
+  });
+
+  // 9. checkNetwork detects network mismatch when passphrase differs
+  it("detects network mismatch when wallet is on a different network", async () => {
+    mockGetNetworkDetails.mockResolvedValue({
+      network: "MAINNET",
+      networkPassphrase: "Public Global Stellar Network ; September 2015",
+      error: undefined,
+    });
+    mockRequestAccess.mockResolvedValue({ address: "GABC123", error: undefined });
+
+    // Expose networkMismatch via a consumer
+    function MismatchConsumer() {
+      const { connect, networkMismatch } = useWallet();
+      return (
+        <div>
+          <span data-testid="mismatch">{String(networkMismatch)}</span>
+          <button onClick={connect}>connect</button>
+        </div>
+      );
+    }
+
+    render(
+      <WalletProvider>
+        <MismatchConsumer />
+      </WalletProvider>,
+    );
+
+    await act(async () => {
+      screen.getByRole("button", { name: "connect" }).click();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("mismatch")).toHaveTextContent("true"),
+    );
+  });
+
+  // 8. signTx throws when Freighter returns an error
+  it("signTx throws when signTransaction returns an error", async () => {
+    mockSignTransaction.mockResolvedValue({
+      signedTxXdr: "",
+      error: { message: "User rejected" },
+    });
+
+    // Expose signTx result via a consumer that catches the error
+    function SignTxConsumer() {
+      const { signTx } = useWallet();
+      const [result, setResult] = React.useState("");
+      return (
+        <button
+          onClick={() =>
+            signTx("test-xdr").catch((e: Error) => setResult(e.message))
+          }
+        >
+          sign
+          <span data-testid="sign-result">{result}</span>
+        </button>
+      );
+    }
+
+    render(
+      <WalletProvider>
+        <SignTxConsumer />
+      </WalletProvider>,
+    );
+
+    await act(async () => {
+      screen.getByRole("button", { name: /sign/i }).click();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("sign-result")).toHaveTextContent("User rejected"),
+    );
+  });
 });

@@ -49,4 +49,10 @@ describe("ProgressBar", () => {
     expect(fill.classList).toContain("bg-indigo-500");
     expect(fill.classList).not.toContain("bg-green-500");
   });
+
+  // 6. animated=true adds the shimmer class
+  it("adds animate-shimmer class when animated is true", () => {
+    const { container } = render(<ProgressBar progress={50} animated />);
+    expect(getFillBar(container).classList).toContain("animate-shimmer");
+  });
 });

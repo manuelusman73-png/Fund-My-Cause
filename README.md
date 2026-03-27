@@ -2,6 +2,8 @@
 
 A decentralized crowdfunding platform built on the [Stellar](https://stellar.org) network using [Soroban](https://soroban.stellar.org) smart contracts. Fund-My-Cause lets anyone create a campaign on-chain, accept contributions in XLM or any Stellar token, and automatically release or refund funds based on whether the goal is met.
 
+![Coverage](https://img.shields.io/badge/coverage-80%25-green)
+
 ---
 
 ## How It Works
@@ -150,6 +152,21 @@ GitHub Actions runs on every push/PR to `main`:
 - Runs all Rust unit tests
 
 See `.github/workflows/rust_ci.yml`.
+
+---
+
+## Code Coverage
+
+The frontend enforces a minimum **80% coverage threshold** across all metrics (statements, branches, functions, lines) via Jest. The build fails if any metric drops below this floor.
+
+Run coverage locally:
+
+```bash
+cd apps/interface
+npm run test:coverage
+```
+
+Thresholds are configured in `apps/interface/jest.config.js` under `coverageThreshold.global`.
 
 ---
 
