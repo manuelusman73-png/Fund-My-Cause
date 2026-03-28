@@ -16,11 +16,21 @@ import {
   Horizon,
 } from "@stellar/stellar-sdk";
 import { CONTRACT_ID, RPC_URL, NETWORK_PASSPHRASE, HORIZON_URL } from "@/lib/constants";
+import { isValidContractId } from "@/lib/validation";
 
-/** A function that signs a transaction XDR and returns the signed XDR. */
+/**
+ * Wallet signing function type.
+ * @typedef {Function} SignFn
+ * @param {string} xdr - Transaction XDR to sign
+ * @returns {Promise<string>} Signed transaction XDR
+ */
 export type SignFn = (xdr: string) => Promise<string>;
 
-/** Thrown when a contract call fails. */
+/**
+ * Error thrown when a contract call fails.
+ * @class ContractError
+ * @extends {Error}
+ */
 export class ContractError extends Error {
   constructor(message: string) {
     super(message);
@@ -28,26 +38,35 @@ export class ContractError extends Error {
   }
 }
 
-/** High-level campaign metadata returned by the contract. */
+/**
+ * High-level campaign metadata returned by the contract.
+ * @interface CampaignInfo
+ * @property {string} title - Campaign title
+ * @property {string} description - Campaign description
+ * @property {string} creator - Creator's Stellar public key
+ * @property {bigint} goal - Goal amount in stroops (1 XLM = 10_000_000 stroops)
+ * @property {bigint} deadline - Deadline as a Unix timestamp (seconds)
+ * @property {bigint} minContribution - Minimum contribution in stroops
+ */
 export interface CampaignInfo {
   title: string;
   description: string;
   creator: string;
-  /** Goal amount in stroops (1 XLM = 10_000_000 stroops). */
   goal: bigint;
-  /** Deadline as a Unix timestamp (seconds). */
   deadline: bigint;
-  /** Minimum contribution in stroops. */
   minContribution: bigint;
 }
 
-/** Live campaign statistics returned by get_stats. */
+/**
+ * Live campaign statistics returned by get_stats.
+ * @interface CampaignStats
+ * @property {bigint} totalRaised - Total raised in stroops
+ * @property {number} progressPercent - Progress as a percentage (progress_bps / 100)
+ * @property {number} contributorCount - Number of unique contributors
+ */
 export interface CampaignStats {
-  /** Total raised in stroops. */
   totalRaised: bigint;
-  /** Progress as a percentage (progress_bps / 100). */
   progressPercent: number;
-  /** Number of unique contributors. */
   contributorCount: number;
 }
 
@@ -55,8 +74,8 @@ export interface CampaignStats {
 
 /**
  * Returns a configured Soroban RPC server instance.
- *
- * @param rpcUrl - Optional override; defaults to NEXT_PUBLIC_RPC_URL env var.
+ * @param {string} [rpcUrl=RPC_URL] - Optional override; defaults to NEXT_PUBLIC_RPC_URL env var
+ * @returns {SorobanRpc.Server} Configured Soroban RPC server
  */
 export function getContractClient(rpcUrl: string = RPC_URL): SorobanRpc.Server {
   return new SorobanRpc.Server(rpcUrl);
@@ -65,6 +84,11 @@ export function getContractClient(rpcUrl: string = RPC_URL): SorobanRpc.Server {
 /**
  * Simulates a read-only contract call and returns the decoded native value.
  * Uses a dummy account — no signing required.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} method - Contract method name to call
+ * @param {any[]} [args=[]] - Method arguments
+ * @returns {Promise<unknown>} Decoded return value from the contract
+ * @throws {ContractError} If simulation fails
  */
 async function simulateView(
   contractId: string,
@@ -72,6 +96,10 @@ async function simulateView(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[] = [],
 ): Promise<unknown> {
+  if (!isValidContractId(contractId)) {
+    throw new ContractError(`Invalid contract ID format: ${contractId}`);
+  }
+
   const rpc = getContractClient();
   const contract = new Contract(contractId);
   // Dummy account — only used for simulation, never submitted.
@@ -95,6 +123,13 @@ async function simulateView(
 /**
  * Builds, prepares, signs, submits, and polls a state-changing contract call.
  * Returns the transaction hash on success.
+ * @param {string} caller - The caller's Stellar public key
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} method - Contract method name to call
+ * @param {any[]} args - Method arguments
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If submission or confirmation fails
  */
 async function invokeContract(
   caller: string,
@@ -104,6 +139,10 @@ async function invokeContract(
   args: any[],
   signTx: SignFn,
 ): Promise<string> {
+  if (!isValidContractId(contractId)) {
+    throw new ContractError(`Invalid contract ID format: ${contractId}`);
+  }
+
   const rpc = getContractClient();
   const horizon = new Horizon.Server(HORIZON_URL);
   const account = await horizon.loadAccount(caller);
@@ -146,9 +185,9 @@ async function invokeContract(
 
 /**
  * Fetches high-level campaign metadata from the contract.
- *
- * @param contractId - The Soroban contract address.
- * @returns Decoded CampaignInfo.
+ * @param {string} [contractId=CONTRACT_ID] - The Soroban contract address
+ * @returns {Promise<CampaignInfo>} Decoded campaign metadata
+ * @throws {ContractError} If the contract call fails
  */
 export async function getCampaignInfo(contractId: string = CONTRACT_ID): Promise<CampaignInfo> {
   const [title, description, creator, goal, deadline, minContribution] = await Promise.all([
@@ -171,9 +210,9 @@ export async function getCampaignInfo(contractId: string = CONTRACT_ID): Promise
 
 /**
  * Fetches live campaign statistics (raised amount, progress, contributor count).
- *
- * @param contractId - The Soroban contract address.
- * @returns Decoded CampaignStats.
+ * @param {string} [contractId=CONTRACT_ID] - The Soroban contract address
+ * @returns {Promise<CampaignStats>} Decoded campaign statistics
+ * @throws {ContractError} If the contract call fails
  */
 export async function getCampaignStats(contractId: string = CONTRACT_ID): Promise<CampaignStats> {
   const raw = (await simulateView(contractId, "get_stats")) as {
@@ -190,12 +229,12 @@ export async function getCampaignStats(contractId: string = CONTRACT_ID): Promis
 
 /**
  * Submits a contribution to the campaign.
- *
- * @param contractId - The Soroban contract address.
- * @param contributor - The contributor's Stellar public key.
- * @param amount - Contribution amount in stroops.
- * @param signTx - Wallet signing function (e.g. from WalletContext).
- * @returns Transaction hash on success.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} contributor - The contributor's Stellar public key
+ * @param {bigint} amount - Contribution amount in stroops
+ * @param {SignFn} signTx - Wallet signing function (e.g. from WalletContext)
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If submission fails
  */
 export async function contribute(
   contractId: string,
@@ -217,11 +256,11 @@ export async function contribute(
 
 /**
  * Withdraws raised funds to the campaign creator after a successful campaign.
- *
- * @param contractId - The Soroban contract address.
- * @param creator - The creator's Stellar public key.
- * @param signTx - Wallet signing function.
- * @returns Transaction hash on success.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} creator - The creator's Stellar public key
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If withdrawal fails
  */
 export async function withdraw(
   contractId: string,
@@ -233,11 +272,11 @@ export async function withdraw(
 
 /**
  * Claims a refund for a single contributor after a failed campaign.
- *
- * @param contractId - The Soroban contract address.
- * @param contributor - The contributor's Stellar public key.
- * @param signTx - Wallet signing function.
- * @returns Transaction hash on success.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} contributor - The contributor's Stellar public key
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If refund fails
  */
 export async function refundSingle(
   contractId: string,

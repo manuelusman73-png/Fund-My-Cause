@@ -3,6 +3,7 @@
  * Returns null if the API is unavailable — callers should hide USD amounts gracefully.
  *
  * Next.js `revalidate: 300` caches the response for 5 minutes at the edge.
+ * @returns {Promise<number|null>} Current XLM price in USD, or null if unavailable
  */
 export async function fetchXlmPrice(): Promise<number | null> {
   try {
@@ -24,10 +25,12 @@ export async function fetchXlmPrice(): Promise<number | null> {
 
 /**
  * Format an XLM amount with an optional USD estimate.
- *
- * Examples:
- *   formatXlm(15400, 0.14)  → "15,400 XLM (~$2,156 USD)"
- *   formatXlm(15400, null)  → "15,400 XLM"
+ * @param {number} xlm - Amount in XLM
+ * @param {number|null} price - Current XLM/USD price, or null to omit USD estimate
+ * @returns {string} Formatted string like "15,400 XLM (~$2,156 USD)" or "15,400 XLM"
+ * @example
+ * formatXlm(15400, 0.14)  // "15,400 XLM (~$2,156 USD)"
+ * formatXlm(15400, null)  // "15,400 XLM"
  */
 export function formatXlm(xlm: number, price: number | null): string {
   const xlmStr = xlm.toLocaleString(undefined, { maximumFractionDigits: 7 });

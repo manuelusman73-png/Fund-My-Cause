@@ -12,6 +12,7 @@ import {
   scValToNative,
   xdr,
 } from "@stellar/stellar-sdk";
+import { isValidContractId } from "@/lib/validation";
 
 const SOROBAN_RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
@@ -228,6 +229,10 @@ export async function fetchCampaignView(contractId: string): Promise<{
   info: CampaignInfo;
   stats: CampaignStats;
 }> {
+  if (!isValidContractId(contractId)) {
+    throw new Error(`Invalid contract ID format: ${contractId}`);
+  }
+
   const [infoValue, statsValue, socialLinksValue] = await Promise.all([
     simulateView(contractId, "get_campaign_info"),
     simulateView(contractId, "get_stats"),
@@ -241,6 +246,10 @@ export async function fetchCampaignView(contractId: string): Promise<{
 }
 
 export async function fetchCampaign(contractId: string): Promise<CampaignData> {
+  if (!isValidContractId(contractId)) {
+    throw new Error(`Invalid contract ID format: ${contractId}`);
+  }
+
   const { info, stats } = await fetchCampaignView(contractId);
 
   return {
@@ -262,6 +271,10 @@ export async function fetchContribution(
   contractId: string,
   address: string,
 ): Promise<number> {
+  if (!isValidContractId(contractId)) {
+    throw new Error(`Invalid contract ID format: ${contractId}`);
+  }
+
   try {
     const result = await simulateView(contractId, "contribution", [
       new Address(address).toScVal(),
@@ -289,12 +302,20 @@ export async function fetchAllCampaigns(): Promise<CampaignData[]> {
 export async function fetchCampaignData(
   contractId: string,
 ): Promise<CampaignData> {
+  if (!isValidContractId(contractId)) {
+    throw new Error(`Invalid contract ID format: ${contractId}`);
+  }
+
   return fetchCampaign(contractId);
 }
 
 export async function buildInitializeTx(
   params: InitializeParams,
 ): Promise<string> {
+  if (!isValidContractId(params.contractId)) {
+    throw new Error(`Invalid contract ID format: ${params.contractId}`);
+  }
+
   const server = new Horizon.Server(HORIZON_URL);
   const account = await server.loadAccount(params.creator);
   const contract = new Contract(params.contractId);

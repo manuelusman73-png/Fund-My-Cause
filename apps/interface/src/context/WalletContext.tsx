@@ -14,6 +14,19 @@ import { NETWORK_PASSPHRASE, NETWORK_NAME } from "@/lib/constants";
 
 const SESSION_KEY = "fmc:wallet_address";
 
+/**
+ * Context value provided by WalletProvider.
+ * @interface WalletContextType
+ * @property {string|null} address - Connected wallet address, or null if disconnected
+ * @property {Function} connect - Initiates Freighter wallet connection
+ * @property {Function} disconnect - Disconnects the wallet and clears session
+ * @property {Function} signTx - Signs a transaction XDR with the connected wallet
+ * @property {boolean} isConnecting - True while connection is in progress
+ * @property {boolean} isAutoConnecting - True while auto-restoring from session storage
+ * @property {string|null} error - Last connection error message, or null
+ * @property {boolean} networkMismatch - True if wallet network differs from app network
+ * @property {string|null} walletNetwork - Wallet's current network name
+ */
 interface WalletContextType {
   address: string | null;
   connect: () => Promise<void>;
@@ -28,6 +41,18 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | null>(null);
 
+/**
+ * Provider component for wallet connectivity via Freighter.
+ * Wraps the app and provides wallet context to all descendants.
+ * Auto-restores wallet connection from session storage on mount.
+ * @param {Object} props - Component props
+ * @param {ReactNode} props.children - Child components
+ * @returns {JSX.Element} Provider wrapper
+ * @example
+ * <WalletProvider>
+ *   <App />
+ * </WalletProvider>
+ */
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -37,6 +62,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletNetwork, setWalletNetwork] = useState<string | null>(null);
   const { addToast } = useToast();
 
+  /**
+   * Checks the wallet's current network and updates state accordingly.
+   * @returns {Promise<string|undefined>} Wallet network name
+   */
   const checkNetwork = useCallback(async () => {
     const result = await getNetworkDetails();
     if (result.error) return;
@@ -57,6 +86,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [checkNetwork]);
 
+  /**
+   * Initiates Freighter wallet connection.
+   * Saves address to session storage and checks network compatibility.
+   */
   const connect = async () => {
     setIsConnecting(true);
     setError(null);
@@ -81,6 +114,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * Disconnects the wallet and clears session storage.
+   */
   const disconnect = useCallback(() => {
     sessionStorage.removeItem(SESSION_KEY);
     setAddress(null);
@@ -89,6 +125,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     addToast("Wallet disconnected", "info");
   }, [addToast]);
 
+  /**
+   * Signs a transaction XDR with the connected wallet.
+   * @param {string} xdr - Transaction XDR to sign
+   * @returns {Promise<string>} Signed transaction XDR
+   * @throws {Error} If signing fails
+   */
   const signTx = async (xdr: string): Promise<string> => {
     const result = await signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE });
     if (result.error) throw new Error(result.error.message ?? "Signing failed");
@@ -114,6 +156,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Hook to access wallet context.
+ * Must be used within a WalletProvider.
+ * @returns {WalletContextType} Wallet context value
+ * @throws {Error} If used outside WalletProvider
+ * @example
+ * const { address, connect, signTx } = useWallet();
+ */
 export function useWallet() {
   const ctx = useContext(WalletContext);
   if (!ctx) throw new Error("useWallet must be used within WalletProvider");
