@@ -6,10 +6,18 @@ import { useWallet } from "@/context/WalletContext";
 import { useTheme } from "@/context/ThemeContext";
 import { NETWORK_NAME } from "@/lib/constants";
 
+function truncate(addr: string) {
+  return `${addr.substring(0, 5)}...${addr.substring(addr.length - 4)}`;
+}
+
 export function Navbar() {
-  const { address, connect, disconnect, isConnecting, isAutoConnecting, error, networkMismatch, walletNetwork } = useWallet();
+  const { address, xlmBalance, connect, disconnect, isConnecting, isAutoConnecting, error, networkMismatch, walletNetwork } = useWallet();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const addressLabel = address
+    ? `${truncate(address)}${xlmBalance !== null ? ` · ${xlmBalance} XLM` : ""}`
+    : null;
 
   return (
     <div>
@@ -24,9 +32,7 @@ export function Navbar() {
         {error && <span className="text-red-500 dark:text-red-400 text-sm">{error}</span>}
         {address ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              {`${address.substring(0, 5)}...${address.substring(address.length - 4)}`}
-            </span>
+            <span className="text-sm text-gray-600 dark:text-gray-300">{addressLabel}</span>
             <button
               onClick={disconnect}
               className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
@@ -77,9 +83,7 @@ export function Navbar() {
           {error && <span className="text-red-500 dark:text-red-400 text-sm">{error}</span>}
           {address ? (
             <div className="space-y-3">
-              <span className="text-sm text-gray-600 dark:text-gray-300 block">
-                {`${address.substring(0, 5)}...${address.substring(address.length - 4)}`}
-              </span>
+              <span className="text-sm text-gray-600 dark:text-gray-300 block">{addressLabel}</span>
               <button
                 onClick={() => { disconnect(); setMobileMenuOpen(false); }}
                 className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition w-full"

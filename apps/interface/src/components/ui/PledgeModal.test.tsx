@@ -13,7 +13,12 @@ jest.mock("@/context/WalletContext", () => ({
     address: mockWalletAddress,
     connect: mockConnect,
     signTx: mockSignTx,
+    isSigning: false,
   }),
+}));
+
+jest.mock("@/hooks/useAccountExists", () => ({
+  useAccountExists: () => ({ exists: true, loading: false }),
 }));
 
 jest.mock("@/components/ui/Toast", () => ({
@@ -48,6 +53,11 @@ function renderModal(onClose = jest.fn(), onSuccess = jest.fn()) {
 beforeEach(() => {
   mockWalletAddress = null;
   jest.clearAllMocks();
+  jest.useFakeTimers();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -65,10 +75,11 @@ describe("PledgeModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls connect() when pledging without a connected wallet", () => {
+  it("calls connect() when pledging without a connected wallet", async () => {
     mockWalletAddress = null;
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /connect wallet to pledge/i }));
+    await act(async () => { jest.runAllTimers(); });
     expect(mockConnect).toHaveBeenCalledTimes(1);
   });
 
@@ -76,6 +87,7 @@ describe("PledgeModal", () => {
     mockWalletAddress = "GABC123";
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /confirm pledge/i }));
+    await act(async () => { jest.runAllTimers(); });
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith("Please enter a valid amount.", "error"),
     );
@@ -94,6 +106,7 @@ describe("PledgeModal", () => {
     const input = screen.getByPlaceholderText(/amount in xlm/i);
     fireEvent.change(input, { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm pledge/i }));
+    await act(async () => { jest.runAllTimers(); });
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith(expect.stringContaining("Minimum"), "error"),
     );
@@ -114,6 +127,7 @@ describe("PledgeModal", () => {
     const input = screen.getByPlaceholderText(/amount in xlm/i);
     fireEvent.change(input, { target: { value: "10" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm pledge/i }));
+    await act(async () => { jest.runAllTimers(); });
 
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith(
@@ -136,6 +150,7 @@ describe("PledgeModal", () => {
     const input = screen.getByPlaceholderText(/amount in xlm/i);
     fireEvent.change(input, { target: { value: "10" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm pledge/i }));
+    await act(async () => { jest.runAllTimers(); });
 
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith("Network error", "error"),
