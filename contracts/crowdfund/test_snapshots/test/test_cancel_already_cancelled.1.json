@@ -67,6 +67,7 @@
                     }
                   ]
                 },
+                "void",
                 "void"
               ]
             }
@@ -290,23 +291,10 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                          "vec": [
-                            {
-                              "symbol": "ContributorCount"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "u32": 0
                         }
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "Creator"
-                            }
-                          ]
                           "symbol": "CREATOR"
                         },
                         "val": {
@@ -342,26 +330,6 @@
                       },
                       {
                         "key": {
-                          "vec": [
-                            {
-                              "symbol": "LargestContribution"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "i128": {
-                            "hi": 0,
-                            "lo": 0
-                          }
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
-                              "symbol": "MinContribution"
-                            }
-                          ]
                           "symbol": "MIN"
                         },
                         "val": {
@@ -414,6 +382,33 @@
                       {
                         "key": {
                           "symbol": "TOTAL"
+                        },
+                        "val": {
+                          "i128": {
+                            "hi": 0,
+                            "lo": 0
+                          }
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "ContributorCount"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u32": 0
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "LargestContribution"
+                            }
+                          ]
                         },
                         "val": {
                           "i128": {
