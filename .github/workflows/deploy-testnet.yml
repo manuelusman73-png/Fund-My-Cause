@@ -1,0 +1,98 @@
+name: Deploy to Testnet
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + WASM target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build and optimize WASM
+        run: |
+          cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/crowdfund/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/registry/Cargo.toml
+
+      - name: Install Stellar CLI
+        run: |
+          cargo install --locked stellar-cli --features opt
+
+      - name: Configure Stellar testnet identity
+        env:
+          TESTNET_SECRET_KEY: ${{ secrets.TESTNET_SECRET_KEY }}
+        run: |
+          stellar keys add deployer --secret-key "$TESTNET_SECRET_KEY"
+          stellar network add testnet \
+            --rpc-url https://soroban-testnet.stellar.org \
+            --network-passphrase "Test SDF Network ; September 2015"
+
+      - name: Deploy registry contract
+        id: deploy_registry
+        run: |
+          REGISTRY_ID=$(stellar contract deploy \
+            --wasm target/wasm32-unknown-unknown/release/registry.wasm \
+            --network testnet \
+            --source deployer)
+          echo "registry_id=$REGISTRY_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy crowdfund contract
+        id: deploy_crowdfund
+        run: |
+          CONTRACT_ID=$(stellar contract deploy \
+            --wasm target/wasm32-unknown-unknown/release/crowdfund.wasm \
+            --network testnet \
+            --source deployer)
+          echo "contract_id=$CONTRACT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Initialize contract with test parameters
+        env:
+          CONTRACT_ID: ${{ steps.deploy_crowdfund.outputs.contract_id }}
+        run: |
+          DEADLINE=$(date -d "+30 days" +%s)
+          stellar contract invoke \
+            --id "$CONTRACT_ID" \
+            --network testnet \
+            --source deployer \
+            -- initialize \
+            --creator "$(stellar keys address deployer)" \
+            --token CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
+            --goal 1000000000 \
+            --deadline "$DEADLINE" \
+            --min_contribution 1000000 \
+            --title "Test Campaign" \
+            --description "CI testnet deployment" \
+            --social_links "null" \
+            --platform_config null
+
+      - name: Write deployment summary
+        env:
+          CONTRACT_ID: ${{ steps.deploy_crowdfund.outputs.contract_id }}
+          REGISTRY_ID: ${{ steps.deploy_registry.outputs.registry_id }}
+        run: |
+          echo "CONTRACT_ID=$CONTRACT_ID" >> "$GITHUB_ENV"
+          echo "## Testnet Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | ID |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Contract | \`$CONTRACT_ID\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Registry | \`$REGISTRY_ID\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post contract ID as commit comment
+        uses: actions/github-script@v7
+        env:
+          CONTRACT_ID: ${{ steps.deploy_crowdfund.outputs.contract_id }}
+          REGISTRY_ID: ${{ steps.deploy_registry.outputs.registry_id }}
+        with:
+          script: |
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `🚀 **Testnet Deployment**\n\n- Contract ID: \`${process.env.CONTRACT_ID}\`\n- Registry ID: \`${process.env.REGISTRY_ID}\``
+            });

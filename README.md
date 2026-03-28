@@ -155,14 +155,43 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## Docker
+
+### Run with Docker Compose (recommended for local dev)
+
+```bash
+# Copy and fill in your env vars
+cp apps/interface/.env.example apps/interface/.env.local
+
+# Build and start
+docker compose up --build
+```
+
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Build the image manually
+
+```bash
+docker build -f apps/interface/Dockerfile -t fund-my-cause .
+docker run -p 3000:3000 --env-file apps/interface/.env.local fund-my-cause
+```
+
+The Dockerfile uses a multi-stage build:
+1. `builder` — installs deps and builds Next.js with `output: 'standalone'`
+2. `runner` — copies only the standalone output for a minimal production image
+
+---
+
 ## CI/CD
 
-GitHub Actions runs on every push/PR to `main`:
+GitHub Actions workflows:
 
-- Builds the WASM binary
-- Runs all Rust unit tests
+- `rust_ci.yml` — builds WASM + runs Rust tests on push/PR to `main`
+- `frontend_ci.yml` — lints and typechecks the frontend on push/PR to `main`
+- `playwright.yml` — runs Playwright E2E tests on PRs targeting `main`
+- `deploy-testnet.yml` — deploys contracts to Stellar testnet on push to `develop`
 
-See `.github/workflows/rust_ci.yml`.
+Dependabot is configured to keep npm, Cargo, and GitHub Actions dependencies up to date weekly.
 
 ---
 
