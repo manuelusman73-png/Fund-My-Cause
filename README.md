@@ -2,7 +2,54 @@
 
 A decentralized crowdfunding platform built on the [Stellar](https://stellar.org) network using [Soroban](https://soroban.stellar.org) smart contracts. Fund-My-Cause lets anyone create a campaign on-chain, accept contributions in XLM or any Stellar token, and automatically release or refund funds based on whether the goal is met.
 
+[![CI Status](https://github.com/Fund-My-Cause/Fund-My-Cause/workflows/Rust%20CI/badge.svg)](https://github.com/Fund-My-Cause/Fund-My-Cause/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Contract Version](https://img.shields.io/badge/contract-v0.1.0-brightgreen)](./contracts/crowdfund/Cargo.toml)
 ![Coverage](https://img.shields.io/badge/coverage-80%25-green)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Next.js Frontend (TypeScript)               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │   Navbar     │  │ ProgressBar  │  │  PledgeModal         │  │
+│  │ (Freighter)  │  │ (Campaign)   │  │  (Contribution)      │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+│         │                 │                      │              │
+│         └─────────────────┴──────────────────────┘              │
+│                           │                                     │
+│                    WalletContext                                │
+│                  (Freighter API)                                │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            │ (sign transactions)
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Stellar RPC Endpoint                         │
+│              (Testnet: https://soroban-testnet.stellar.org)     │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            │ (invoke contracts)
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   Soroban Smart Contracts                       │
+│  ┌──────────────────────┐  ┌──────────────────────────────────┐ │
+│  │  Crowdfund Contract  │  │  Registry Contract               │ │
+│  │  - initialize()      │  │  - register(campaign_id)         │ │
+│  │  - contribute()      │  │  - list_campaigns()              │ │
+│  │  - withdraw()        │  │  - get_campaign_count()          │ │
+│  │  - refund_single()   │  │                                  │ │
+│  │  - get_stats()       │  │                                  │ │
+│  └──────────────────────┘  └──────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            │ (store state)
+                            ▼
+                    Stellar Ledger
+```
 
 ---
 
@@ -99,16 +146,26 @@ The app uses `@stellar/freighter-api` for wallet connectivity. The `WalletContex
 
 ## Prerequisites
 
-**Contracts:**
+### Contracts
 
-- [Rust](https://rustup.rs/) (stable)
-- `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli)
+| Requirement | Version | Installation |
+|---|---|---|
+| Rust | 1.70+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| wasm32 target | - | `rustup target add wasm32-unknown-unknown` |
+| Stellar CLI | 21.0+ | [Installation Guide](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli) |
 
-**Frontend:**
+### Frontend
 
-- Node.js 18+
-- [Freighter browser extension](https://www.freighter.app/)
+| Requirement | Version | Installation |
+|---|---|---|
+| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| npm | 9+ | Included with Node.js |
+| Freighter | Latest | [freighter.app](https://www.freighter.app/) |
+
+### Optional
+
+- Docker (for containerized deployment)
+- GitHub CLI (for release automation)
 
 ---
 
@@ -117,7 +174,7 @@ The app uses `@stellar/freighter-api` for wallet connectivity. The `WalletContex
 ### 1. Clone
 
 ```bash
-git clone https://github.com/<your-org>/Fund-My-Cause.git
+git clone https://github.com/Fund-My-Cause/Fund-My-Cause.git
 cd Fund-My-Cause
 ```
 
@@ -143,7 +200,18 @@ After campaign initialization, the script calls `registry.register(campaign_id)`
 
 Save the printed `Contract ID` and `Registry ID` — you'll need them in frontend config.
 
-### 4. Run the frontend
+### 4. Configure frontend environment
+
+Create `apps/interface/.env.local`:
+
+```bash
+NEXT_PUBLIC_CROWDFUND_CONTRACT_ID=<CONTRACT_ID>
+NEXT_PUBLIC_REGISTRY_CONTRACT_ID=<REGISTRY_ID>
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+```
+
+### 5. Run the frontend
 
 ```bash
 cd apps/interface
@@ -152,6 +220,83 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Environment Variables Reference
+
+### Frontend (`apps/interface/.env.local`)
+
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `NEXT_PUBLIC_CROWDFUND_CONTRACT_ID` | Yes | Deployed crowdfund contract ID | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
+| `NEXT_PUBLIC_REGISTRY_CONTRACT_ID` | Yes | Deployed registry contract ID | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
+| `NEXT_PUBLIC_SOROBAN_RPC_URL` | Yes | Stellar RPC endpoint | `https://soroban-testnet.stellar.org` |
+| `NEXT_PUBLIC_NETWORK_PASSPHRASE` | Yes | Stellar network identifier | `Test SDF Network ; September 2015` |
+
+### Deployment (`scripts/deploy.sh`)
+
+| Parameter | Description | Example |
+|---|---|---|
+| `CREATOR_ADDRESS` | Campaign creator's Stellar address | `GBUQWP3BOUZX34ULNQG23RQ6F4YUSXHTQSXUSMIQSTBE2EURIDVXL6B` |
+| `TOKEN_ADDRESS` | Token contract address (XLM or custom) | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
+| `GOAL` | Funding goal in stroops | `1000000000` |
+| `DEADLINE` | Unix timestamp for campaign end | `1704067200` |
+| `MIN_CONTRIBUTION` | Minimum contribution in stroops | `1000000` |
+
+---
+
+## Troubleshooting
+
+### Freighter Not Found
+
+**Problem:** "Freighter extension not detected"
+
+**Solution:**
+1. Install [Freighter](https://www.freighter.app/) for your browser
+2. Ensure it's enabled in browser extensions
+3. Refresh the page
+4. Check browser console for errors: `F12` → Console tab
+
+### RPC Connection Errors
+
+**Problem:** "Failed to connect to Soroban RPC"
+
+**Solution:**
+1. Verify `NEXT_PUBLIC_SOROBAN_RPC_URL` is correct in `.env.local`
+2. Check network connectivity: `curl https://soroban-testnet.stellar.org`
+3. Ensure you're on Stellar Testnet (not Mainnet)
+4. Try switching networks in Freighter settings
+
+### Contract Not Found
+
+**Problem:** "Contract not found on ledger"
+
+**Solution:**
+1. Verify contract ID is correct: `stellar contract info --id <CONTRACT_ID>`
+2. Ensure contract is deployed to the correct network (Testnet)
+3. Check contract hasn't expired (Soroban contracts have TTL)
+4. Redeploy if necessary: `./scripts/deploy.sh ...`
+
+### Build Failures
+
+**Problem:** `error: failed to compile`
+
+**Solution:**
+1. Update Rust: `rustup update`
+2. Add wasm32 target: `rustup target add wasm32-unknown-unknown`
+3. Clear build cache: `cargo clean && cargo build --release --target wasm32-unknown-unknown`
+4. Check Stellar CLI version: `stellar version` (should be 21.0+)
+
+### Transaction Signing Fails
+
+**Problem:** "User rejected transaction" or wallet doesn't respond
+
+**Solution:**
+1. Ensure Freighter is unlocked
+2. Check you're on the correct network in Freighter
+3. Verify account has sufficient XLM for fees (~0.00001 XLM per operation)
+4. Try disconnecting and reconnecting wallet in Navbar
 
 ---
 
