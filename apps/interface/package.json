@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest --run",
+    "test:vitest": "vitest --run",
+    "test:coverage": "vitest --coverage"
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
@@ -32,12 +34,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   }
 }

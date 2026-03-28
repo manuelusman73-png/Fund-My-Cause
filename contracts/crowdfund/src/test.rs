@@ -36,6 +36,8 @@ fn setup_contract(
         &None,
         &None,
     );
+    assert_eq!(result.err(), Some(Ok(ContractError::InvalidDeadline)));
+}
 
     (creator, token_id, client, token_admin_client)
 }
@@ -118,6 +120,9 @@ fn invalid_platform_fee_is_rejected() {
     assert_eq!(result.err(), Some(Ok(ContractError::InvalidFee)));
 }
 
+// ── Boundary tests (#107) ─────────────────────────────────────────────────────
+
+/// Contribute exactly min_contribution — must succeed.
 #[test]
 fn accepted_token_whitelist_is_enforced() {
     let env = Env::default();

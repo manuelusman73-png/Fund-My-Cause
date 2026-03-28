@@ -4,8 +4,16 @@ import React, { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
-import { fetchContribution } from "@/lib/soroban";
 import { withdraw, refundSingle, getCampaignStats } from "@/lib/contract";
+import {
+  fetchContribution,
+  buildWithdrawTx,
+  simulateTx,
+  submitSignedTx,
+  buildRefundTx,
+  type CampaignStatus 
+} from "@/lib/soroban";
+import { useToast } from "@/components/ui/Toast";
 
 interface Props {
   contractId: string;
@@ -18,7 +26,10 @@ interface Props {
   raisedXlm?: number;
   /** Minimum contribution in stroops. */
   minContribution?: bigint;
+  status: CampaignStatus;
 }
+
+type ActionStatus = "idle" | "simulating" | "signing" | "submitting" | "done" | "error";
 
 export function CampaignActions({
   contractId,
@@ -40,6 +51,16 @@ export function CampaignActions({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txHash, setTxHash] = useState("");
   const [txError, setTxError] = useState("");
+  const { addToast } = useToast();
+  const [actionStatus, setActionStatus] = useState<ActionStatus>("idle");
+  const [actionError, setActionError] = useState("");
+  const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
+  const [refundClaimed, setRefundClaimed] = useState(false);
+  const { addToast } = useToast();
+  const [txStatus, setTxStatus] = useState<
+    "idle" | "pending" | "done" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (address) {
@@ -84,6 +105,13 @@ export function CampaignActions({
       setTxError(msg);
       setTxStatus("error");
     }
+
+  function handleRefund() {
+    // buildWithdrawTx reused here; replace with buildRefundTx when available
+    executeAction(
+      () => buildWithdrawTx(address!, contractId),
+      "Refund claimed successfully!",
+    );
   }
 
   async function handleRefund() {
@@ -122,6 +150,22 @@ export function CampaignActions({
       // non-critical
     }
   }
+
+  if (actionStatus === "done") {
+    return (
+      <p className="text-green-500 dark:text-green-400 text-center py-4">
+        Transaction submitted successfully!
+      </p>
+    );
+  }
+
+  const isPending = actionStatus === "simulating" || actionStatus === "signing" || actionStatus === "submitting";
+
+  const pendingLabel: Record<string, string> = {
+    simulating: "Simulating…",
+    signing: "Waiting for signature…",
+    submitting: "Submitting…",
+  };
 
   return (
     <>

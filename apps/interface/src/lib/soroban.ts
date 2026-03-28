@@ -1,87 +1,41 @@
-/**
- * Minimal Soroban RPC helpers for reading campaign data.
- * Uses the JSON-RPC 2.0 HTTP API — no extra SDK dependency required.
- */
+import {
+  Account,
+  Address,
+  BASE_FEE,
+  Contract,
+  Horizon,
+  Keypair,
+  Networks,
+  TransactionBuilder,
+  nativeToScVal,
+  rpc as SorobanRpc,
+  scValToNative,
+  xdr,
+} from "@stellar/stellar-sdk";
 
-const RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+const SOROBAN_RPC_URL =
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
+  "https://soroban-testnet.stellar.org";
+const HORIZON_URL =
+  process.env.NEXT_PUBLIC_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
+const NETWORK_PASSPHRASE = Networks.TESTNET;
 
-// Contract IDs are stored as a comma-separated env var, e.g.:
-//   NEXT_PUBLIC_CAMPAIGN_CONTRACT_IDS=CABC...,CDEF...
 const CONTRACT_IDS: string[] = (
   process.env.NEXT_PUBLIC_CAMPAIGN_CONTRACT_IDS ?? ""
 )
   .split(",")
-  .map((s) => s.trim())
+  .map((value) => value.trim())
   .filter(Boolean);
 
-interface RpcResponse<T> {
-  result?: T;
-  error?: { message: string };
-}
+const VALID_STATUSES = [
+  "Active",
+  "Successful",
+  "Refunded",
+  "Cancelled",
+  "Paused",
+] as const;
 
-async function rpcCall<T>(method: string, params: unknown): Promise<T> {
-  const res = await fetch(RPC_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    next: { revalidate: 30 }, // Next.js cache: refresh every 30 s
-  });
-  const json: RpcResponse<T> = await res.json();
-  if (json.error) throw new Error(json.error.message);
-  return json.result as T;
-}
-
-/** Invoke a read-only contract function and return the raw XDR result. */
-async function simulateReadOnly(
-  contractId: string,
-  functionName: string,
-  args: unknown[] = []
-): Promise<string> {
-  const result = await rpcCall<{ results?: { xdr: string }[] }>(
-    "simulateTransaction",
-    {
-      transaction: buildInvokeXdr(contractId, functionName, args),
-    }
-  );
-  const xdr = result.results?.[0]?.xdr;
-  if (!xdr) throw new Error(`No result for ${functionName} on ${contractId}`);
-  return xdr;
-}
-
-/**
- * Builds a minimal base64-encoded XDR envelope for a read-only invocation.
- * We rely on the RPC node to simulate it — no signing needed.
- *
- * In a production app you'd use @stellar/stellar-sdk's TransactionBuilder.
- * Here we call the `simulateTransaction` endpoint with a pre-built XDR string
- * generated via the stellar-sdk on the server, or use `getContractData` for
- * simple storage reads.
- */
-function buildInvokeXdr(
-  _contractId: string,
-  _functionName: string,
-  _args: unknown[]
-): string {
-  // Placeholder — replace with stellar-sdk TransactionBuilder output.
-  // The RPC simulation endpoint accepts a signed or unsigned tx envelope XDR.
-  throw new Error("buildInvokeXdr: integrate stellar-sdk TransactionBuilder");
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
-import {
-  Contract,
-  Networks,
-  TransactionBuilder,
-  BASE_FEE,
-  nativeToScVal,
-  Address,
-  xdr,
-  Horizon,
-} from "@stellar/stellar-sdk";
-
-const SERVER_URL = "https://horizon-testnet.stellar.org";
-const NETWORK_PASSPHRASE = Networks.TESTNET;
+export type CampaignStatus = (typeof VALID_STATUSES)[number];
 
 export interface InitializeParams {
   contractId: string;
@@ -93,19 +47,272 @@ export interface InitializeParams {
   title: string;
   description: string;
   socialLinks?: string[];
+  acceptedTokens?: string[];
   platformFeeAddress?: string;
   platformFeeBps?: number;
 }
 
-export async function buildInitializeTx(params: InitializeParams): Promise<string> {
-  const server = new Horizon.Server(SERVER_URL);
-  const account = await server.loadAccount(params.creator);
+export interface CampaignInfo {
+  contractId: string;
+  creator: string;
+  token: string;
+  goal: bigint;
+  deadline: bigint;
+  minContribution: bigint;
+  title: string;
+  description: string;
+  status: CampaignStatus;
+  hasPlatformConfig: boolean;
+  platformFeeBps: number;
+  platformAddress: string;
+  socialLinks: string[];
+  acceptedTokens?: string[];
+}
 
+export interface CampaignStats {
+  totalRaised: bigint;
+  goal: bigint;
+  progressBps: number;
+  contributorCount: number;
+  averageContribution: bigint;
+  largestContribution: bigint;
+}
+
+export interface CampaignData {
+  contractId: string;
+  title: string;
+  description: string;
+  raised: number;
+  goal: number;
+  deadline: string;
+  creator: string;
+  socialLinks: string[];
+  contributorCount: number;
+  averageContribution: number;
+  status: CampaignStatus;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  throw new Error("Unexpected Soroban response shape");
+}
+
+function toBigIntValue(value: unknown, fallback = 0n): bigint {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") return BigInt(Math.trunc(value));
+  if (typeof value === "string" && value.length > 0) return BigInt(value);
+  return fallback;
+}
+
+function toNumberValue(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+}
+
+function toStringValue(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+function toBooleanValue(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value === "true";
+  return fallback;
+}
+
+function toStringArrayValue(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => toStringValue(item)).filter(Boolean);
+}
+
+function normalizeStatus(value: unknown): CampaignStatus {
+  if (
+    typeof value === "string" &&
+    VALID_STATUSES.includes(value as CampaignStatus)
+  ) {
+    return value as CampaignStatus;
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const tagged = record.tag;
+    if (
+      typeof tagged === "string" &&
+      VALID_STATUSES.includes(tagged as CampaignStatus)
+    ) {
+      return tagged as CampaignStatus;
+    }
+
+    for (const key of Object.keys(record)) {
+      if (VALID_STATUSES.includes(key as CampaignStatus)) {
+        return key as CampaignStatus;
+      }
+    }
+  }
+
+async function simulateView(contractId: string, method: string, args: xdr.ScVal[] = []) {
+  const rpc = new SorobanRpc.Server(RPC_URL);
+  const contract = new Contract(contractId);
+  const account = new Account(Keypair.random().publicKey(), "0");
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contract.call(method, ...args))
+    .setTimeout(30)
+    .build();
+
+  const result = await rpc.simulateTransaction(tx);
+  if (SorobanRpc.Api.isSimulationError(result)) {
+    throw new Error(result.error);
+  }
+
+  const simulation =
+    result as SorobanRpc.Api.SimulateTransactionSuccessResponse;
+  if (!simulation.result) {
+    throw new Error(`No result returned for ${method}`);
+  }
+
+  return scValToNative(simulation.result.retval);
+}
+
+function normalizeCampaignInfo(
+  contractId: string,
+  infoValue: unknown,
+  socialLinksValue: unknown,
+): CampaignInfo {
+  const info = toRecord(infoValue);
+
+  return {
+    contractId,
+    creator: toStringValue(info.creator),
+    token: toStringValue(info.token),
+    goal: toBigIntValue(info.goal),
+    deadline: toBigIntValue(info.deadline),
+    minContribution: toBigIntValue(info.min_contribution),
+    title: toStringValue(info.title),
+    description: toStringValue(info.description),
+    status: normalizeStatus(info.status),
+    hasPlatformConfig: toBooleanValue(info.has_platform_config),
+    platformFeeBps: toNumberValue(info.platform_fee_bps),
+    platformAddress: toStringValue(info.platform_address),
+    socialLinks: toStringArrayValue(socialLinksValue),
+    acceptedTokens: toStringArrayValue(info.accepted_tokens), // Added acceptedTokens
+  };
+}
+
+function normalizeCampaignStats(statsValue: unknown): CampaignStats {
+  const stats = toRecord(statsValue);
+
+  return {
+    totalRaised: toBigIntValue(stats.total_raised),
+    goal: toBigIntValue(stats.goal),
+    progressBps: toNumberValue(stats.progress_bps),
+    contributorCount: toNumberValue(stats.contributor_count),
+    averageContribution: toBigIntValue(stats.average_contribution),
+    largestContribution: toBigIntValue(stats.largest_contribution),
+  };
+}
+
+export async function fetchCampaignView(contractId: string): Promise<{
+  info: CampaignInfo;
+  stats: CampaignStats;
+}> {
+  const [infoValue, statsValue, socialLinksValue] = await Promise.all([
+    simulateView(contractId, "get_campaign_info"),
+    simulateView(contractId, "get_stats"),
+    simulateView(contractId, "social_links").catch(() => []),
+  ]);
+
+  return {
+    info: normalizeCampaignInfo(contractId, infoValue, socialLinksValue),
+    stats: normalizeCampaignStats(statsValue),
+  };
+}
+
+export async function fetchCampaign(contractId: string): Promise<CampaignData> {
+  const { info, stats } = await fetchCampaignView(contractId);
+
+  return {
+    contractId,
+    title: info.title,
+    description: info.description,
+    raised: stroopsToXlm(stats.totalRaised),
+    goal: stroopsToXlm(info.goal),
+    deadline: ledgerTimestampToIso(info.deadline),
+    creator: info.creator,
+    socialLinks: info.socialLinks,
+    contributorCount: stats.contributorCount,
+    averageContribution: stroopsToXlm(stats.averageContribution),
+    status: info.status,
+  };
+}
+
+export async function fetchContribution(
+  contractId: string,
+  address: string,
+): Promise<number> {
+  try {
+    const result = await simulateView(contractId, "contribution", [
+      new Address(address).toScVal(),
+    ]);
+    return stroopsToXlm(toBigIntValue(result));
+  } catch {
+    return 0;
+  }
+}
+
+export async function fetchAllCampaigns(): Promise<CampaignData[]> {
+  if (CONTRACT_IDS.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    CONTRACT_IDS.map((id) => fetchCampaign(id)),
+  );
+  return results
+    .filter(
+      (result): result is PromiseFulfilledResult<CampaignData> =>
+        result.status === "fulfilled",
+    )
+    .map((result) => result.value);
+}
+
+export async function fetchCampaignData(
+  contractId: string,
+): Promise<CampaignData> {
+  return fetchCampaign(contractId);
+}
+
+export async function buildInitializeTx(
+  params: InitializeParams,
+): Promise<string> {
+  const server = new Horizon.Server(HORIZON_URL);
+  const account = await server.loadAccount(params.creator);
   const contract = new Contract(params.contractId);
 
   const socialLinksVal =
     params.socialLinks && params.socialLinks.length > 0
-      ? xdr.ScVal.scvVec(params.socialLinks.map((s) => nativeToScVal(s, { type: "string" })))
+      ? xdr.ScVal.scvVec(
+          params.socialLinks.map((value) =>
+            nativeToScVal(value, { type: "string" }),
+          ),
+        )
+      : xdr.ScVal.scvVoid();
+
+  const acceptedTokensVal =
+    params.acceptedTokens && params.acceptedTokens.length > 0
+      ? xdr.ScVal.scvVec(
+          params.acceptedTokens.map((value) => new Address(value).toScVal()),
+        )
       : xdr.ScVal.scvVoid();
 
   const platformConfigVal =
@@ -138,6 +345,7 @@ export async function buildInitializeTx(params: InitializeParams): Promise<strin
         nativeToScVal(params.description, { type: "string" }),
         socialLinksVal,
         platformConfigVal,
+        acceptedTokensVal,
       ),
     )
     .setTimeout(30)
@@ -147,140 +355,152 @@ export async function buildInitializeTx(params: InitializeParams): Promise<strin
 }
 
 export async function submitSignedTx(signedXdr: string): Promise<string> {
-  const server = new Horizon.Server(SERVER_URL);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tx = (await import("@stellar/stellar-sdk")).TransactionBuilder.fromXDR(
-    signedXdr,
-    NETWORK_PASSPHRASE,
-  );
+  const server = new Horizon.Server(HORIZON_URL);
+  const tx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
   const result = await server.submitTransaction(tx);
   return result.hash;
 }
 
-// ── Soroban RPC helpers ───────────────────────────────────────────────────────
-
-import { rpc as SorobanRpc, scValToNative } from "@stellar/stellar-sdk";
-
-async function simulateView(contractId: string, method: string, args: xdr.ScVal[] = []) {
-  const rpc = new SorobanRpc.Server(RPC_URL);
+async function buildSimpleContractTx(
+  caller: string,
+  contractId: string,
+  method: string,
+  args: xdr.ScVal[] = [],
+): Promise<string> {
+  const server = new Horizon.Server(HORIZON_URL);
+  const account = await server.loadAccount(caller);
   const contract = new Contract(contractId);
-  // Use a dummy source account for simulation
-  const dummyKeypair = (await import("@stellar/stellar-sdk")).Keypair.random();
-  const account = new (await import("@stellar/stellar-sdk")).Account(dummyKeypair.publicKey(), "0");
-  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE })
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
     .addOperation(contract.call(method, ...args))
     .setTimeout(30)
     .build();
-  const result = await rpc.simulateTransaction(tx);
-  if (SorobanRpc.Api.isSimulationError(result)) throw new Error(result.error);
-  const sim = result as SorobanRpc.Api.SimulateTransactionSuccessResponse;
-  return scValToNative(sim.result!.retval);
+
+  return tx.toXDR();
 }
 
-export type CampaignStatus = "Active" | "Successful" | "Refunded" | "Cancelled";
+export const buildWithdrawTx = (caller: string, contractId: string) =>
+  buildSimpleContractTx(caller, contractId, "withdraw");
 
-export interface CampaignData {
-  contractId: string;
-  title: string;
-  description: string;
-  raised: number;          // stroops → display as XLM (/1e7)
-  goal: number;
-  deadline: string;        // ISO string derived from ledger timestamp
-  creator: string;
-  socialLinks: string[];
-  contributorCount: number;
-  averageContribution: number;
-  status: "Active" | "Successful" | "Refunded" | "Cancelled";
-}
+export const buildCancelTx = (caller: string, contractId: string) =>
+  buildSimpleContractTx(caller, contractId, "cancel_campaign");
 
-/**
- * Fetch on-chain stats for a single campaign contract.
- * Uses `getContractData` for simple scalar reads to avoid needing a full tx.
- */
-export async function fetchCampaign(contractId: string): Promise<CampaignData> {
-  const [titleXdr, descXdr, raisedXdr, goalXdr, creatorXdr, socialXdr, statsXdr] =
-    await Promise.all([
-      readInstanceEntry(contractId, "Title"),
-      readInstanceEntry(contractId, "Description"),
-      readInstanceEntry(contractId, "TotalRaised"),
-      readInstanceEntry(contractId, "Goal"),
-      readInstanceEntry(contractId, "Creator"),
-      readInstanceEntry(contractId, "SocialLinks").catch(() => null),
-      readInstanceEntry(contractId, "Stats").catch(() => null),
-    ]);
-
-  const stats = statsXdr ? decodeStatsXdr(statsXdr) : null;
-
-  return {
-    contractId,
-    title: decodeStringXdr(titleXdr),
-    description: decodeStringXdr(descXdr),
-    raised: decodeI128Xdr(raisedXdr) / 1e7,
-    goal: decodeI128Xdr(goalXdr) / 1e7,
-    deadline: new Date(Date.now() + 30 * 86400_000).toISOString(), // replace with Deadline entry
-    creator: decodeAddressXdr(creatorXdr),
-    socialLinks: socialXdr ? decodeStringVecXdr(socialXdr) : [],
-    contributorCount: stats?.contributorCount ?? 0,
-    averageContribution: stats?.averageContribution ?? 0,
-    status: "Active",
-  };
-}
-
-/** Read a single instance storage entry by its DataKey symbol name. */
-async function readInstanceEntry(
+export async function buildRefundTx(
+  caller: string,
   contractId: string,
-  keyName: string
 ): Promise<string> {
-  // getLedgerEntries accepts base64 XDR LedgerKey values.
-  // Build the key XDR for ContractData(contractId, DataKey::<keyName>, Instance).
-  const keyXdr = buildInstanceKeyXdr(contractId, keyName);
-  const result = await rpcCall<{ entries?: { xdr: string }[] }>(
-    "getLedgerEntries",
-    { keys: [keyXdr] }
-  );
-  const xdr = result.entries?.[0]?.xdr;
-  if (!xdr) throw new Error(`Entry ${keyName} not found for ${contractId}`);
-  return xdr;
+  return buildSimpleContractTx(caller, contractId, "refund_single", [
+    new Address(caller).toScVal(),
+  ]);
 }
 
-// ── XDR helpers (stubs — replace with stellar-sdk ScVal decoders) ─────────────
-
-function buildInstanceKeyXdr(_contractId: string, _keyName: string): string {
-  throw new Error("buildInstanceKeyXdr: integrate stellar-sdk xdr module");
-}
-
-function decodeStringXdr(_xdr: string): string {
-  throw new Error("decodeStringXdr: integrate stellar-sdk xdr module");
-}
-
-function decodeI128Xdr(_xdr: string): number {
-  throw new Error("decodeI128Xdr: integrate stellar-sdk xdr module");
-}
-
-function decodeAddressXdr(_xdr: string): string {
-  throw new Error("decodeAddressXdr: integrate stellar-sdk xdr module");
-}
-
-function decodeStringVecXdr(_xdr: string): string[] {
-  throw new Error("decodeStringVecXdr: integrate stellar-sdk xdr module");
-}
-
-function decodeStatsXdr(_xdr: string): { contributorCount: number; averageContribution: number } {
-  throw new Error("decodeStatsXdr: integrate stellar-sdk xdr module");
-}
-
-/** Fetch the contribution amount for a specific address on a contract. */
-export async function fetchContribution(
+export async function buildUpdateMetadataTx(
+  caller: string,
   contractId: string,
-  address: string
-): Promise<number> {
-  const xdr = await readInstanceEntry(contractId, `Contribution:${address}`).catch(() => null);
-  return xdr ? decodeI128Xdr(xdr) / 1e7 : 0;
+  title: string,
+  description: string,
+): Promise<string> {
+  return buildSimpleContractTx(caller, contractId, "update_metadata", [
+    nativeToScVal(title, { type: "string" }),
+    nativeToScVal(description, { type: "string" }),
+    xdr.ScVal.scvVoid(),
+  ]);
 }
 
 /**
- * Fetch all configured campaign contracts in parallel.
- * Returns successfully resolved campaigns; failed ones are silently skipped.
+ * Build a contribute (pledge) transaction XDR.
+ * @param caller  - contributor's Stellar address
+ * @param contractId - campaign contract ID
+ * @param amountXlm  - amount in XLM (converted to stroops internally)
+ */
+export async function buildContributeTx(
+  caller: string,
+  contractId: string,
+  amountXlm: number,
+): Promise<string> {
+  const amountStroops = BigInt(Math.round(amountXlm * 1e7));
+  return buildSimpleContractTx(caller, contractId, "contribute", [
+    nativeToScVal(amountStroops, { type: "i128" }),
+  ]);
+}
+
+export interface SimulateResult {
+  /** Minimum resource fee in stroops */
+  minFee: number;
+  /** Fee formatted as XLM string for display, e.g. "0.0001234 XLM" */
+  minFeeXlm: string;
+  /** Transaction XDR with the simulation-populated soroban data attached */
+  preparedXdr: string;
+}
+
+/**
+ * Simulate a transaction against the Soroban RPC before asking the user to sign.
+ * - Estimates the resource fee
+ * - Detects contract errors early (before the user touches Freighter)
+ * - Returns the fee-bumped, simulation-prepared XDR ready for signing
+ *
+ * Throws a user-friendly Error if simulation fails.
+ */
+export async function simulateTx(unsignedXdr: string): Promise<SimulateResult> {
+  const rpc = new SorobanRpc.Server(RPC_URL);
+
+  const tx = TransactionBuilder.fromXDR(unsignedXdr, NETWORK_PASSPHRASE);
+  const result = await rpc.simulateTransaction(tx);
+
+  if (SorobanRpc.Api.isSimulationError(result)) {
+    // Surface the contract diagnostic message when available
+    const msg = result.error ?? "Simulation failed";
+    throw new Error(parseSimulationError(msg));
+  }
+
+  if (SorobanRpc.Api.isSimulationRestore(result)) {
+    throw new Error(
+      "This transaction requires a ledger entry restore. Please try again shortly.",
+    );
+  }
+
+  const success = result as SorobanRpc.Api.SimulateTransactionSuccessResponse;
+
+  // Attach soroban auth + resource data to the transaction
+  const prepared = SorobanRpc.assembleTransaction(tx, success).build();
+
+  const minFee = Number(success.minResourceFee ?? 0);
+  const minFeeXlm = (minFee / 1e7).toFixed(7).replace(/\.?0+$/, "") + " XLM";
+
+  return { minFee, minFeeXlm, preparedXdr: prepared.toXDR() };
+}
+
+/** Extract a readable message from a Soroban diagnostic error string. */
+function parseSimulationError(raw: string): string {
+  // Contract errors often look like: "HostError: Value(ContractError(N))\n..."
+  const contractMatch = raw.match(/ContractError\((\d+)\)/);
+  if (contractMatch) return `Contract error code ${contractMatch[1]}. Please check your inputs.`;
+  if (raw.includes("below minimum")) return "Amount is below the campaign's minimum contribution.";
+  if (raw.includes("deadline")) return "This campaign's deadline has passed.";
+  if (raw.includes("Cancelled")) return "This campaign has been cancelled.";
+  // Fallback: trim to first line so we don't dump a wall of XDR at the user
+  return raw.split("\n")[0] ?? "Simulation failed. Please try again.";
+}
+
+// ── Transaction history (Horizon) ─────────────────────────────────────────────
+
+export interface ContributionRecord {
+  txHash: string;
+  contributor: string;   // source account of the invoking transaction
+  amountXlm: number;     // parsed from the invoke_host_function operation
+  timestamp: string;     // ISO string
+}
+
+/**
+ * Fetch the 10 most recent contract invocations for a campaign contract
+ * using the Horizon operations endpoint.
+ *
+ * We filter for `invoke_host_function` operations whose function name
+ * matches "contribute". Amount is read from the first i128 argument.
+ * Returns an empty array when the contract account has no history yet.
  */
 export async function fetchAllCampaigns(): Promise<CampaignData[]> {
   if (CONTRACT_IDS.length === 0) return [];
@@ -326,37 +546,44 @@ export async function fetchCampaignData(contractId: string): Promise<CampaignDat
   };
 }
 
-async function buildSimpleContractTx(
-  caller: string,
-  contractId: string,
-  method: string,
-  args: xdr.ScVal[] = [],
-): Promise<string> {
-  const server = new Horizon.Server(SERVER_URL);
-  const account = await server.loadAccount(caller);
-  const contract = new Contract(contractId);
-  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(contract.call(method, ...args))
-    .setTimeout(30)
-    .build();
-  return tx.toXDR();
+// ── Horizon response types (minimal) ─────────────────────────────────────────
+
+interface HorizonOperation {
+  type: string;
+  transaction_hash: string;
+  source_account: string;
+  created_at: string;
+  /** Present on invoke_host_function ops — base64 XDR of the host function */
+  function?: string;
+  /** Horizon sometimes surfaces the decoded function name */
+  function_name?: string;
+  /** Decoded parameters array when available */
+  parameters?: { value: string; type: string }[];
 }
 
-export const buildWithdrawTx = (caller: string, contractId: string) =>
-  buildSimpleContractTx(caller, contractId, "withdraw");
+interface HorizonOperationsPage {
+  _embedded?: { records: HorizonOperation[] };
+}
 
-export const buildCancelTx = (caller: string, contractId: string) =>
-  buildSimpleContractTx(caller, contractId, "cancel_campaign");
+/**
+ * Attempt to extract the XLM amount from an invoke_host_function operation.
+ * Returns null if this is not a "contribute" invocation.
+ *
+ * Horizon exposes `function_name` on decoded ops. When unavailable we fall
+ * back to checking the first numeric parameter as a best-effort heuristic.
+ */
+function parseContributeAmount(op: HorizonOperation): number | null {
+  // Horizon testnet decodes the function name for contract invocations
+  if (op.function_name && op.function_name !== "contribute") return null;
 
-export async function buildUpdateMetadataTx(
-  caller: string,
-  contractId: string,
-  title: string,
-  description: string,
-): Promise<string> {
-  return buildSimpleContractTx(caller, contractId, "update_metadata", [
-    nativeToScVal(title, { type: "string" }),
-    nativeToScVal(description, { type: "string" }),
-    xdr.ScVal.scvVoid(),
-  ]);
+  // Try to read the first parameter as the i128 amount in stroops
+  const firstParam = op.parameters?.[0];
+  if (firstParam) {
+    const stroops = Number(firstParam.value);
+    if (!isNaN(stroops) && stroops > 0) return stroops / 1e7;
+  }
+
+  // If Horizon didn't decode parameters, return a sentinel so the row
+  // still appears (amount shown as "—")
+  return 0;
 }

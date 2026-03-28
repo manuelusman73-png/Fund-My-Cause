@@ -152,3 +152,48 @@ fn test_full_lifecycle_refund_path() {
     // Contract holds nothing
     assert_eq!(c.token.balance(&c.contract_id), 0);
 }
+
+#[test]
+fn test_pull_based_refund_model_multiple_contributors_goal_not_met() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let deadline = 1_000u64;
+    let goal = 10_000i128;
+
+    let c = setup(&env, goal, deadline, None);
+
+    let contributors: Vec<Address> = (0..10).map(|_| Address::generate(&env)).collect();
+    let amounts = [100i128, 200, 300, 400, 500, 600, 700, 800, 900, 1_000]; // total = 5_500 < goal
+
+    env.ledger().set_timestamp(500);
+    for (addr, &amt) in contributors.iter().zip(amounts.iter()) {
+        c.token_admin.mint(addr, &amt);
+        c.client.contribute(addr, &amt, &c.token_id);
+    }
+
+    assert_eq!(c.client.total_raised(), 5_500);
+
+    // Advance past deadline — withdraw must fail (goal not met)
+    env.ledger().set_timestamp(deadline + 1);
+    assert!(c.client.try_withdraw().is_err());
+
+    // Each contributor claims their refund (and cannot claim twice)
+    let balances_before: Vec<i128> = contributors.iter().map(|addr| c.token.balance(addr)).collect();
+
+    for (i, (addr, &amt)) in contributors.iter().zip(amounts.iter()).enumerate() {
+        c.client.refund_single(addr);
+        assert_eq!(c.token.balance(addr), balances_before[i] + amt);
+        assert_eq!(c.client.contribution(addr), 0); // storage zeroed
+
+        let after_first = c.token.balance(addr);
+        c.client.refund_single(addr);
+        assert_eq!(c.token.balance(addr), after_first); // no double payout
+    }
+
+    // total_raised is not modified by refunds in the pull-based model
+    assert_eq!(c.client.total_raised(), 5_500);
+
+    // Contract holds nothing
+    assert_eq!(c.token.balance(&c.contract_id), 0);
+}

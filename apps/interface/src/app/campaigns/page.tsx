@@ -2,13 +2,14 @@ import React, { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { CampaignCard } from "@/components/ui/CampaignCard";
 import { fetchAllCampaigns } from "@/lib/soroban";
+import { fetchXlmPrice } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
 import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
 async function CampaignGrid() {
-  const onChain = await fetchAllCampaigns();
+  const [onChain, xlmPrice] = await Promise.all([fetchAllCampaigns(), fetchXlmPrice()]);
 
   // Map on-chain data to Campaign shape; fall back to placeholder image
   const campaigns: Campaign[] = onChain.map((c) => ({
@@ -36,7 +37,7 @@ async function CampaignGrid() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {campaigns.map((c) => <CampaignCard key={c.id} campaign={c} />)}
+      {campaigns.map((c) => <CampaignCard key={c.id} campaign={c} xlmPrice={xlmPrice} />)}
     </div>
   );
 }

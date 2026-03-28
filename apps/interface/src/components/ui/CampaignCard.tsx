@@ -3,11 +3,14 @@
 import React from "react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { formatXlm } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
 
 export interface CampaignCardProps {
   campaign: Campaign;
-  onPledge: (id: string) => void;
+  onPledge?: (id: string) => void;
+  /** Pass null when price fetch failed — USD amounts are hidden */
+  xlmPrice?: number | null;
 }
 
 function StatusBadge({ status }: { status: "funded" | "ended" }) {
@@ -24,7 +27,7 @@ function StatusBadge({ status }: { status: "funded" | "ended" }) {
   );
 }
 
-export function CampaignCard({ campaign, onPledge }: CampaignCardProps) {
+export function CampaignCard({ campaign, onPledge, xlmPrice = null }: CampaignCardProps) {
   const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const isFunded = progress >= 100;
   const isEnded = !isFunded && new Date(campaign.deadline) < new Date();
@@ -43,13 +46,13 @@ export function CampaignCard({ campaign, onPledge }: CampaignCardProps) {
         <p className="text-gray-400 text-sm line-clamp-2">{campaign.description}</p>
         <ProgressBar progress={progress} />
         <div className="flex justify-between text-sm text-gray-400">
-          <span>{campaign.raised.toLocaleString()} XLM raised</span>
-          <span>{campaign.goal.toLocaleString()} XLM goal</span>
+          <span>{formatXlm(campaign.raised, xlmPrice)} raised</span>
+          <span>{formatXlm(campaign.goal, xlmPrice)} goal</span>
         </div>
         <CountdownTimer deadline={campaign.deadline} />
         <button
           className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          onClick={() => onPledge(campaign.id)}
+          onClick={() => onPledge?.(campaign.id)}
           disabled={isDisabled}
         >
           {isFunded ? "Successfully Funded" : isEnded ? "Campaign Ended" : "Pledge Now"}

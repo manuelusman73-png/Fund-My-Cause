@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Loader2, CheckCircle, XCircle, CircleDot, FileSignature, Send, Clock } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, CircleDot, FileSignature, Send, Clock, FlaskConical } from "lucide-react";
 
-export type TxStatus = "idle" | "signing" | "submitting" | "confirming" | "success" | "error";
+export type TxStatus = "idle" | "simulating" | "signing" | "submitting" | "confirming" | "success" | "error";
 
 export interface TransactionStatusProps {
   status: TxStatus;
@@ -22,18 +22,20 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
   }, [status, onDismiss]);
 
   const steps = [
-    { key: "idle", label: "Idle", icon: CircleDot },
-    { key: "signing", label: "Signing", icon: FileSignature },
+    { key: "idle",       label: "Idle",       icon: CircleDot },
+    { key: "simulating", label: "Simulating", icon: FlaskConical },
+    { key: "signing",    label: "Signing",    icon: FileSignature },
     { key: "submitting", label: "Submitting", icon: Send },
     { key: "confirming", label: "Confirming", icon: Clock },
   ];
 
   const getCurrentStepIndex = () => {
-    if (status === "idle") return 0;
-    if (status === "signing") return 1;
-    if (status === "submitting") return 2;
-    if (status === "confirming") return 3;
-    if (status === "success" || status === "error") return 3;
+    if (status === "idle")       return 0;
+    if (status === "simulating") return 1;
+    if (status === "signing")    return 2;
+    if (status === "submitting") return 3;
+    if (status === "confirming") return 4;
+    if (status === "success" || status === "error") return 4;
     return 0;
   };
 
@@ -49,7 +51,12 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
           const Icon = step.icon;
           const isCompleted = index < currentIndex;
           const isCurrent = index === currentIndex;
-          const isLoading = isCurrent && (status === "signing" || status === "submitting" || status === "confirming");
+          const isLoading =
+            isCurrent &&
+            (status === "simulating" ||
+              status === "signing" ||
+              status === "submitting" ||
+              status === "confirming");
 
           return (
             <div key={step.key} className="flex items-center">

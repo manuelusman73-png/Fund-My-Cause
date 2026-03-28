@@ -1,18 +1,23 @@
 import React from "react";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { TransactionHistory } from "@/components/ui/TransactionHistory";
+import { XlmAmount } from "@/components/ui/XlmAmount";
 import { fetchCampaign } from "@/lib/soroban";
+import { fetchXlmPrice } from "@/lib/price";
 import { CampaignActions } from "./CampaignActions";
+import { CampaignDetailContent } from "./CampaignDetailContent";
 
 // ── SEO ───────────────────────────────────────────────────────────────────────
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
   try {
     const c = await fetchCampaign(id);
@@ -25,17 +30,13 @@ export async function generateMetadata(
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function CampaignDetailPage(
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function CampaignDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   let campaign;
@@ -44,6 +45,9 @@ export default async function CampaignDetailPage(
   } catch {
     notFound();
   }
+
+  // Fetch XLM price in parallel — null if CoinGecko is unavailable
+  const xlmPrice = await fetchXlmPrice();
 
   const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const deadlinePassed = new Date(campaign.deadline) < new Date();
@@ -80,8 +84,8 @@ export default async function CampaignDetailPage(
         <div className="space-y-2">
           <ProgressBar progress={progress} />
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>{campaign.raised.toLocaleString()} XLM raised</span>
-            <span>{campaign.goal.toLocaleString()} XLM goal</span>
+            <span><XlmAmount xlm={campaign.raised} price={xlmPrice} /> raised</span>
+            <span><XlmAmount xlm={campaign.goal} price={xlmPrice} /> goal</span>
           </div>
         </div>
 
@@ -93,7 +97,7 @@ export default async function CampaignDetailPage(
           </div>
           <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4">
             <p className="text-xl font-semibold">
-              {campaign.averageContribution.toLocaleString()} XLM
+              <XlmAmount xlm={campaign.averageContribution} price={xlmPrice} />
             </p>
             <p className="text-gray-500 text-xs mt-1">Avg. contribution</p>
           </div>
@@ -105,6 +109,9 @@ export default async function CampaignDetailPage(
 
         {/* Description */}
         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{campaign.description}</p>
+
+        {/* Transaction history */}
+        <TransactionHistory contractId={id} />
 
         {/* Share buttons */}
         <ShareButton campaignId={id} campaignTitle={campaign.title} />
@@ -140,6 +147,7 @@ export default async function CampaignDetailPage(
           status={campaign.status}
         />
       </div>
+      <CampaignDetailContent contractId={id} />
     </main>
   );
 }
