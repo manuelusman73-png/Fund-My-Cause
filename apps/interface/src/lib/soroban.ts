@@ -484,3 +484,110 @@ function parseSimulationError(raw: string): string {
   // Fallback: trim to first line so we don't dump a wall of XDR at the user
   return raw.split("\n")[0] ?? "Simulation failed. Please try again.";
 }
+
+// ── Transaction history (Horizon) ─────────────────────────────────────────────
+
+export interface ContributionRecord {
+  txHash: string;
+  contributor: string;   // source account of the invoking transaction
+  amountXlm: number;     // parsed from the invoke_host_function operation
+  timestamp: string;     // ISO string
+}
+
+/**
+ * Fetch the 10 most recent contract invocations for a campaign contract
+ * using the Horizon operations endpoint.
+ *
+ * We filter for `invoke_host_function` operations whose function name
+ * matches "contribute". Amount is read from the first i128 argument.
+ * Returns an empty array when the contract account has no history yet.
+ */
+export async function fetchTransactionHistory(
+  contractId: string,
+  limit = 10,
+): Promise<ContributionRecord[]> {
+  const network = process.env.NEXT_PUBLIC_NETWORK === "mainnet" ? "mainnet" : "testnet";
+  const horizonBase =
+    network === "mainnet"
+      ? "https://horizon.stellar.org"
+      : "https://horizon-testnet.stellar.org";
+
+  const url =
+    `${horizonBase}/accounts/${contractId}/operations` +
+    `?limit=${limit}&order=desc&include_failed=false`;
+
+  let json: HorizonOperationsPage;
+  try {
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    if (res.status === 404) return []; // contract account not yet on-chain
+    if (!res.ok) throw new Error(`Horizon ${res.status}`);
+    json = await res.json();
+  } catch {
+    return []; // network error — degrade gracefully
+  }
+
+  const records: ContributionRecord[] = [];
+
+  for (const op of json._embedded?.records ?? []) {
+    if (op.type !== "invoke_host_function") continue;
+
+    // The function name is encoded in the parameters; Horizon exposes it
+    // as op.function which is the base64 XDR of the invocation.
+    // We use the transaction source as the contributor address.
+    const amountXlm = parseContributeAmount(op);
+    if (amountXlm === null) continue; // not a contribute call
+
+    records.push({
+      txHash: op.transaction_hash,
+      contributor: op.source_account,
+      amountXlm,
+      timestamp: op.created_at,
+    });
+
+    if (records.length >= limit) break;
+  }
+
+  return records;
+}
+
+// ── Horizon response types (minimal) ─────────────────────────────────────────
+
+interface HorizonOperation {
+  type: string;
+  transaction_hash: string;
+  source_account: string;
+  created_at: string;
+  /** Present on invoke_host_function ops — base64 XDR of the host function */
+  function?: string;
+  /** Horizon sometimes surfaces the decoded function name */
+  function_name?: string;
+  /** Decoded parameters array when available */
+  parameters?: { value: string; type: string }[];
+}
+
+interface HorizonOperationsPage {
+  _embedded?: { records: HorizonOperation[] };
+}
+
+/**
+ * Attempt to extract the XLM amount from an invoke_host_function operation.
+ * Returns null if this is not a "contribute" invocation.
+ *
+ * Horizon exposes `function_name` on decoded ops. When unavailable we fall
+ * back to checking the first numeric parameter as a best-effort heuristic.
+ */
+function parseContributeAmount(op: HorizonOperation): number | null {
+  // Horizon testnet decodes the function name for contract invocations
+  if (op.function_name && op.function_name !== "contribute") return null;
+
+  // Try to read the first parameter as the i128 amount in stroops
+  const firstParam = op.parameters?.[0];
+  if (firstParam) {
+    const stroops = Number(firstParam.value);
+    if (!isNaN(stroops) && stroops > 0) return stroops / 1e7;
+  }
+
+  // If Horizon didn't decode parameters, return a sentinel so the row
+  // still appears (amount shown as "—")
+  return 0;
+}
