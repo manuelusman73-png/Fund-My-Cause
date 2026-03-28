@@ -46,21 +46,13 @@ export function CampaignActions({
   const [userContribution, setUserContribution] = useState(0);
   const [campaignStatus, setCampaignStatus] = useState(initialStatus);
   const [raised, setRaised] = useState(raisedXlm);
+  const [pendingTx, setPendingTx] = useState(false);
 
   // Withdraw / refund transaction state
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txHash, setTxHash] = useState("");
   const [txError, setTxError] = useState("");
   const { addToast } = useToast();
-  const [actionStatus, setActionStatus] = useState<ActionStatus>("idle");
-  const [actionError, setActionError] = useState("");
-  const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
-  const [refundClaimed, setRefundClaimed] = useState(false);
-  const { addToast } = useToast();
-  const [txStatus, setTxStatus] = useState<
-    "idle" | "pending" | "done" | "error"
-  >("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (address) {
@@ -79,7 +71,8 @@ export function CampaignActions({
     !!address && deadlinePassed && !goalMet && userContribution > 0 && campaignStatus !== "Refunded";
 
   async function handleWithdraw() {
-    if (!address) return;
+    if (!address || pendingTx) return;
+    setPendingTx(true);
     setTxError("");
     setTxStatus("signing");
     try {
@@ -104,18 +97,14 @@ export function CampaignActions({
       const msg = err instanceof Error ? err.message : "Withdraw failed.";
       setTxError(msg);
       setTxStatus("error");
+    } finally {
+      setPendingTx(false);
     }
-
-  function handleRefund() {
-    // buildWithdrawTx reused here; replace with buildRefundTx when available
-    executeAction(
-      () => buildWithdrawTx(address!, contractId),
-      "Refund claimed successfully!",
-    );
   }
 
   async function handleRefund() {
-    if (!address) return;
+    if (!address || pendingTx) return;
+    setPendingTx(true);
     setTxError("");
     setTxStatus("signing");
     try {
@@ -132,6 +121,8 @@ export function CampaignActions({
       const msg = err instanceof Error ? err.message : "Refund failed.";
       setTxError(msg);
       setTxStatus("error");
+    } finally {
+      setPendingTx(false);
     }
   }
 
@@ -151,21 +142,7 @@ export function CampaignActions({
     }
   }
 
-  if (actionStatus === "done") {
-    return (
-      <p className="text-green-500 dark:text-green-400 text-center py-4">
-        Transaction submitted successfully!
-      </p>
-    );
-  }
-
-  const isPending = actionStatus === "simulating" || actionStatus === "signing" || actionStatus === "submitting";
-
-  const pendingLabel: Record<string, string> = {
-    simulating: "Simulating…",
-    signing: "Waiting for signature…",
-    submitting: "Submitting…",
-  };
+  const isProcessing = txStatus !== "idle" || pendingTx;
 
   return (
     <>
@@ -188,10 +165,10 @@ export function CampaignActions({
         )}
 
         {/* Pledge — visible while campaign is active */}
-        {campaignStatus === "Active" && !deadlinePassed && txStatus === "idle" && (
+        {campaignStatus === "Active" && !deadlinePassed && (
           <button
             onClick={() => (address ? setPledging(true) : connect())}
-            disabled={networkMismatch}
+            disabled={networkMismatch || isProcessing}
             className="w-full py-3 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 transition text-white disabled:opacity-50"
           >
             {address ? "Pledge Now" : "Connect Wallet to Pledge"}
@@ -199,20 +176,22 @@ export function CampaignActions({
         )}
 
         {/* Claim Refund */}
-        {canRefund && txStatus === "idle" && (
+        {canRefund && (
           <button
             onClick={handleRefund}
-            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 transition text-white"
+            disabled={isProcessing}
+            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 transition text-white disabled:opacity-50"
           >
             Claim Refund ({userContribution.toLocaleString()} XLM)
           </button>
         )}
 
         {/* Withdraw Funds — creator only, after deadline + goal met */}
-        {canWithdraw && txStatus === "idle" && (
+        {canWithdraw && (
           <button
             onClick={handleWithdraw}
-            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 transition text-white"
+            disabled={isProcessing}
+            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 transition text-white disabled:opacity-50"
           >
             Withdraw Funds
           </button>
