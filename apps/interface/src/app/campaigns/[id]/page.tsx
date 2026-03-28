@@ -1,5 +1,4 @@
 import React from "react";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -7,13 +6,15 @@ import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { TransactionHistory } from "@/components/ui/TransactionHistory";
 import { fetchCampaign } from "@/lib/soroban";
-import { CampaignActions } from "./CampaignActions";
+import { CampaignDetailContent } from "./CampaignDetailContent";
 
 // ── SEO ───────────────────────────────────────────────────────────────────────
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
   try {
     const c = await fetchCampaign(id);
@@ -26,29 +27,14 @@ export async function generateMetadata(
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function CampaignDetailPage(
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function CampaignDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-
-  let campaign;
-  try {
-    campaign = await fetchCampaign(id);
-  } catch {
-    notFound();
-  }
-
-  const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
-  const deadlinePassed = new Date(campaign.deadline) < new Date();
-  const goalMet = campaign.raised >= campaign.goal;
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
@@ -144,6 +130,7 @@ export default async function CampaignDetailPage(
           status={campaign.status}
         />
       </div>
+      <CampaignDetailContent contractId={id} />
     </main>
   );
 }

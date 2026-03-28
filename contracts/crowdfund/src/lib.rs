@@ -9,24 +9,6 @@ use soroban_sdk::{
 const CONTRACT_VERSION: u32 = 3;
 
 // ── Storage Keys ──────────────────────────────────────────────────────────────
-//
-// DESIGN DECISION: Symbol vs DataKey enum
-//
-// We use Symbol constants for simple storage keys (those without associated data)
-// and reserve the DataKey enum only for keys that carry data (e.g., Contribution(Address)).
-//
-// Benefits:
-// - Lower storage overhead: Symbol is more compact than enum variants
-// - Reduced serialization cost: Symbols are primitive types
-// - Cleaner code: Direct key usage without enum wrapping
-//
-// Trade-offs:
-// - Less type safety: Symbols are just strings, no compile-time variant checking
-// - Manual key management: Must ensure uniqueness manually
-//
-// This is a common pattern in Soroban contracts where performance matters.
-// symbol_short! creates compile-time validated symbols (max 9 chars).
-//
 const KEY_CREATOR: Symbol = symbol_short!("CREATOR");
 const KEY_TOKEN: Symbol = symbol_short!("TOKEN");
 const KEY_GOAL: Symbol = symbol_short!("GOAL");
@@ -71,7 +53,6 @@ pub struct PlatformConfig {
     pub fee_bps: u32,
 }
 
-// DataKey now only used for variants that carry data
 #[derive(Clone)]
 #[contracttype]
 pub struct CampaignInfo {
@@ -92,13 +73,6 @@ pub struct CampaignInfo {
 #[contracttype]
 pub enum DataKey {
     Contribution(Address),
-    Status,
-    MinContribution,
-    Admin,
-    Title,
-    Description,
-    SocialLinks,
-    PlatformConfig,
     ContributorPresence(Address),
     ContributorCount,
     LargestContribution,
@@ -114,7 +88,7 @@ use soroban_sdk::contracterror;
 #[repr(u32)]
 pub enum ContractError {
     AlreadyInitialized = 1,
-    CampaignEnded = 2,
+    CampaignEnded      = 2,
     CampaignStillActive = 3,
     GoalNotReached = 4,
     GoalReached = 5,
@@ -135,7 +109,6 @@ pub struct CrowdfundContract;
 
 #[contractimpl]
 impl CrowdfundContract {
-    /// Initialize a new Fund-My-Cause campaign.
     pub fn initialize(
         env: Env,
         creator: Address,
@@ -163,7 +136,6 @@ impl CrowdfundContract {
         if min_contribution < 0 {
             return Err(ContractError::BelowMinimum);
         }
-        env.storage().instance().set(&KEY_ADMIN, &creator);
 
         if let Some(ref config) = platform_config {
             if config.fee_bps > 10_000 {
@@ -172,6 +144,7 @@ impl CrowdfundContract {
             env.storage().instance().set(&KEY_PLATFORM, config);
         }
 
+        env.storage().instance().set(&KEY_ADMIN, &creator);
         env.storage().instance().set(&KEY_CREATOR, &creator);
         env.storage().instance().set(&KEY_TOKEN, &token);
         env.storage().instance().set(&KEY_GOAL, &goal);
@@ -179,6 +152,10 @@ impl CrowdfundContract {
         env.storage().instance().set(&KEY_MIN, &min_contribution);
         env.storage().instance().set(&KEY_TITLE, &title);
         env.storage().instance().set(&KEY_DESC, &description);
+        env.storage().instance().set(&KEY_TOTAL, &0i128);
+        env.storage().instance().set(&KEY_STATUS, &Status::Active);
+        env.storage().instance().set(&DataKey::ContributorCount, &0u32);
+        env.storage().instance().set(&DataKey::LargestContribution, &0i128);
 
         if let Some(links) = social_links {
             env.storage().instance().set(&KEY_SOCIAL, &links);
@@ -190,19 +167,14 @@ impl CrowdfundContract {
         if let Some(tokens) = accepted_tokens {
             env.storage().instance().set(&DataKey::AcceptedTokens, &tokens);
         }
-        env.storage().instance().set(&KEY_TOTAL, &0i128);
-        env.storage().instance().set(&KEY_STATUS, &Status::Active);
 
         let empty: Vec<Address> = Vec::new(&env);
         env.storage().persistent().set(&KEY_CONTRIBS, &empty);
 
-        // Event: Campaign initialized
         env.events().publish(("campaign", "initialized"), ());
-
         Ok(())
     }
 
-    /// Contribute tokens to the campaign.
     pub fn contribute(env: Env, contributor: Address, amount: i128, token: Address) -> Result<(), ContractError> {
         contributor.require_auth();
 
@@ -220,7 +192,7 @@ impl CrowdfundContract {
         }
 
         let deadline: u64 = env.storage().instance().get(&KEY_DEADLINE).unwrap();
-        if env.ledger().timestamp() > deadline {
+        if env.ledger().timestamp() >= deadline {
             return Err(ContractError::CampaignEnded);
         }
 
@@ -254,6 +226,15 @@ impl CrowdfundContract {
             env.storage().persistent().extend_ttl(&presence_key, 100, 100);
             let count: u32 = env.storage().instance().get(&DataKey::ContributorCount).unwrap();
             env.storage().instance().set(&DataKey::ContributorCount, &(count + 1));
+
+            let mut contributors: Vec<Address> = env
+                .storage()
+                .persistent()
+                .get(&KEY_CONTRIBS)
+                .unwrap_or_else(|| Vec::new(&env));
+            contributors.push_back(contributor.clone());
+            env.storage().persistent().set(&KEY_CONTRIBS, &contributors);
+            env.storage().persistent().extend_ttl(&KEY_CONTRIBS, 100, 100);
         }
 
         let largest: i128 = env.storage().instance().get(&DataKey::LargestContribution).unwrap();
@@ -272,24 +253,11 @@ impl CrowdfundContract {
             env.storage().persistent().extend_ttl(&KEY_CONTRIBS, 100, 100);
         }
 
-        // Extend instance storage TTL to keep contract alive.
-        // Instance storage includes: Creator, Token, Goal, Deadline, MinContribution,
-        // Title, Description, SocialLinks, Status, TotalRaised, PlatformConfig.
-        // 
-        // TTL Strategy:
-        // - Threshold: 17280 ledgers (~1 day at 5s/ledger) - extend when TTL drops below this
-        // - Extension: 518400 ledgers (~30 days at 5s/ledger) - extend to this duration
-        // 
-        // This ensures the contract remains accessible throughout typical campaign durations
-        // while balancing storage costs. The threshold triggers extension early enough to
-        // prevent archival during active campaigns.
         env.storage().instance().extend_ttl(17280, 518400);
-
         env.events().publish(("campaign", "contributed"), (contributor, amount));
         Ok(())
     }
 
-    /// Creator withdraws funds after a successful campaign.
     pub fn withdraw(env: Env) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
         if status != Status::Active {
@@ -300,7 +268,7 @@ impl CrowdfundContract {
         creator.require_auth();
 
         let deadline: u64 = env.storage().instance().get(&KEY_DEADLINE).unwrap();
-        if env.ledger().timestamp() <= deadline {
+        if env.ledger().timestamp() < deadline {
             return Err(ContractError::CampaignStillActive);
         }
 
@@ -313,11 +281,7 @@ impl CrowdfundContract {
         let token_address: Address = env.storage().instance().get(&KEY_TOKEN).unwrap();
         let token_client = token::Client::new(&env, &token_address);
 
-        let payout = if let Some(config) = env
-            .storage()
-            .instance()
-            .get::<_, PlatformConfig>(&KEY_PLATFORM)
-        {
+        let payout = if let Some(config) = env.storage().instance().get::<_, PlatformConfig>(&KEY_PLATFORM) {
             let fee = total * config.fee_bps as i128 / 10_000;
             token_client.transfer(&env.current_contract_address(), &config.address, &fee);
             total - fee
@@ -335,11 +299,11 @@ impl CrowdfundContract {
 
         env.storage().instance().set(&KEY_TOTAL, &0i128);
         env.storage().instance().set(&KEY_STATUS, &Status::Successful);
+        env.storage().instance().extend_ttl(17280, 518400);
         env.events().publish(("campaign", "withdrawn"), (creator, total));
         Ok(())
     }
 
-    /// Update campaign metadata.
     pub fn update_metadata(
         env: Env,
         title: Option<String>,
@@ -350,32 +314,22 @@ impl CrowdfundContract {
         if status != Status::Active {
             return Err(ContractError::NotActive);
         }
-
         let creator: Address = env.storage().instance().get(&KEY_CREATOR).unwrap();
         creator.require_auth();
 
-        if let Some(t) = title {
-            env.storage().instance().set(&KEY_TITLE, &t);
-        }
-        if let Some(d) = description {
-            env.storage().instance().set(&KEY_DESC, &d);
-        }
-        if let Some(l) = social_links {
-            env.storage().instance().set(&KEY_SOCIAL, &l);
-        }
+        if let Some(t) = title { env.storage().instance().set(&KEY_TITLE, &t); }
+        if let Some(d) = description { env.storage().instance().set(&KEY_DESC, &d); }
+        if let Some(l) = social_links { env.storage().instance().set(&KEY_SOCIAL, &l); }
 
-        // Event: Campaign metadata updated
         env.events().publish(("campaign", "metadata_updated"), ());
         Ok(())
     }
 
-    /// Extend the campaign deadline (only forward, only while Active).
     pub fn extend_deadline(env: Env, new_deadline: u64) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
         if status != Status::Active {
             return Err(ContractError::NotActive);
         }
-
         let creator: Address = env.storage().instance().get(&KEY_CREATOR).unwrap();
         creator.require_auth();
 
@@ -383,37 +337,31 @@ impl CrowdfundContract {
         if new_deadline <= current_deadline {
             return Err(ContractError::InvalidDeadline);
         }
-
         env.storage().instance().set(&KEY_DEADLINE, &new_deadline);
         env.events().publish(("campaign", "deadline_extended"), new_deadline);
         Ok(())
     }
 
-    /// Cancel a campaign before the deadline.
     pub fn cancel_campaign(env: Env) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
         if status != Status::Active {
             return Err(ContractError::NotActive);
         }
-
         let creator: Address = env.storage().instance().get(&KEY_CREATOR).unwrap();
         creator.require_auth();
-
         env.storage().instance().set(&KEY_STATUS, &Status::Cancelled);
         env.events().publish(("campaign", "cancelled"), ());
         Ok(())
     }
 
-    /// Pull-based refund — each contributor claims individually if goal not met.
     pub fn refund_single(env: Env, contributor: Address) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
 
         if status != Status::Cancelled {
             let deadline: u64 = env.storage().instance().get(&KEY_DEADLINE).unwrap();
-            if env.ledger().timestamp() <= deadline {
+            if env.ledger().timestamp() < deadline {
                 return Err(ContractError::CampaignStillActive);
             }
-
             let goal: i128 = env.storage().instance().get(&KEY_GOAL).unwrap();
             let total: i128 = env.storage().instance().get(&KEY_TOTAL).unwrap();
             if total >= goal {
@@ -428,14 +376,11 @@ impl CrowdfundContract {
             token::Client::new(&env, &token_address)
                 .transfer(&env.current_contract_address(), &contributor, &amount);
             env.storage().persistent().set(&key, &0i128);
-
-            // Event: Contributor refunded with amount
             env.events().publish(("campaign", "refunded"), (contributor, amount));
         }
         Ok(())
     }
 
-    /// Pause an active campaign (admin only).
     pub fn pause(env: Env) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
         if status != Status::Active {
@@ -448,7 +393,6 @@ impl CrowdfundContract {
         Ok(())
     }
 
-    /// Unpause a paused campaign (admin only).
     pub fn unpause(env: Env) -> Result<(), ContractError> {
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
         if status != Status::Paused {
@@ -587,12 +531,12 @@ impl CrowdfundContract {
             .instance()
             .get(&KEY_PLATFORM);
 
-        let (has_platform_config, platform_fee_bps, platform_address) = if let Some(config) = platform_config {
-            (true, config.fee_bps, config.address)
-        } else {
-            // Default values when no platform config exists
-            (false, 0, creator.clone())
-        };
+        let (has_platform_config, platform_fee_bps, platform_address) =
+            if let Some(config) = env.storage().instance().get::<_, PlatformConfig>(&KEY_PLATFORM) {
+                (true, config.fee_bps, config.address)
+            } else {
+                (false, 0, creator.clone())
+            };
 
         CampaignInfo {
             creator,
@@ -609,27 +553,6 @@ impl CrowdfundContract {
         }
     }
 
-    /// Returns a paginated slice of contributors.
-    /// 
-    /// This function provides efficient access to the contributors list without
-    /// hitting execution limits for large campaigns. The limit is capped at 50
-    /// to prevent excessive gas consumption.
-    /// 
-    /// # Arguments
-    /// * `offset` - Starting index in the contributors vector (0-based)
-    /// * `limit` - Maximum number of contributors to return (capped at 50)
-    /// 
-    /// # Returns
-    /// A vector containing up to `limit` contributor addresses starting from `offset`.
-    /// Returns an empty vector if offset is beyond the list length.
-    /// 
-    /// # Example
-    /// ```
-    /// // Get first 50 contributors
-    /// let page1 = contributor_list(env, 0, 50);
-    /// // Get next 50 contributors
-    /// let page2 = contributor_list(env, 50, 50);
-    /// ```
     pub fn contributor_list(env: Env, offset: u32, limit: u32) -> Vec<Address> {
         let contributors: Vec<Address> = env
             .storage()
@@ -638,28 +561,17 @@ impl CrowdfundContract {
             .unwrap_or_else(|| Vec::new(&env));
 
         let total_count = contributors.len();
-        
-        // Return empty vector if offset is beyond the list
         if offset >= total_count {
             return Vec::new(&env);
         }
 
-        // Cap limit at 50 to prevent excessive gas consumption
         let capped_limit = if limit > 50 { 50 } else { limit };
-        
-        // Calculate the end index (exclusive)
-        let end = if offset + capped_limit > total_count {
-            total_count
-        } else {
-            offset + capped_limit
-        };
+        let end = (offset + capped_limit).min(total_count);
 
-        // Build the result vector with the requested slice
         let mut result = Vec::new(&env);
         for i in offset..end {
             result.push_back(contributors.get(i).unwrap());
         }
-
         result
     }
 }
