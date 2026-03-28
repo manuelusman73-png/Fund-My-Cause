@@ -223,91 +223,43 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Environment Variables Reference
+## Docker
 
-### Frontend (`apps/interface/.env.local`)
+### Run with Docker Compose (recommended for local dev)
 
-| Variable | Required | Description | Example |
-|---|---|---|---|
-| `NEXT_PUBLIC_CROWDFUND_CONTRACT_ID` | Yes | Deployed crowdfund contract ID | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
-| `NEXT_PUBLIC_REGISTRY_CONTRACT_ID` | Yes | Deployed registry contract ID | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
-| `NEXT_PUBLIC_SOROBAN_RPC_URL` | Yes | Stellar RPC endpoint | `https://soroban-testnet.stellar.org` |
-| `NEXT_PUBLIC_NETWORK_PASSPHRASE` | Yes | Stellar network identifier | `Test SDF Network ; September 2015` |
+```bash
+# Copy and fill in your env vars
+cp apps/interface/.env.example apps/interface/.env.local
 
-### Deployment (`scripts/deploy.sh`)
+# Build and start
+docker compose up --build
+```
 
-| Parameter | Description | Example |
-|---|---|---|
-| `CREATOR_ADDRESS` | Campaign creator's Stellar address | `GBUQWP3BOUZX34ULNQG23RQ6F4YUSXHTQSXUSMIQSTBE2EURIDVXL6B` |
-| `TOKEN_ADDRESS` | Token contract address (XLM or custom) | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` |
-| `GOAL` | Funding goal in stroops | `1000000000` |
-| `DEADLINE` | Unix timestamp for campaign end | `1704067200` |
-| `MIN_CONTRIBUTION` | Minimum contribution in stroops | `1000000` |
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
----
+### Build the image manually
 
-## Troubleshooting
+```bash
+docker build -f apps/interface/Dockerfile -t fund-my-cause .
+docker run -p 3000:3000 --env-file apps/interface/.env.local fund-my-cause
+```
 
-### Freighter Not Found
-
-**Problem:** "Freighter extension not detected"
-
-**Solution:**
-1. Install [Freighter](https://www.freighter.app/) for your browser
-2. Ensure it's enabled in browser extensions
-3. Refresh the page
-4. Check browser console for errors: `F12` → Console tab
-
-### RPC Connection Errors
-
-**Problem:** "Failed to connect to Soroban RPC"
-
-**Solution:**
-1. Verify `NEXT_PUBLIC_SOROBAN_RPC_URL` is correct in `.env.local`
-2. Check network connectivity: `curl https://soroban-testnet.stellar.org`
-3. Ensure you're on Stellar Testnet (not Mainnet)
-4. Try switching networks in Freighter settings
-
-### Contract Not Found
-
-**Problem:** "Contract not found on ledger"
-
-**Solution:**
-1. Verify contract ID is correct: `stellar contract info --id <CONTRACT_ID>`
-2. Ensure contract is deployed to the correct network (Testnet)
-3. Check contract hasn't expired (Soroban contracts have TTL)
-4. Redeploy if necessary: `./scripts/deploy.sh ...`
-
-### Build Failures
-
-**Problem:** `error: failed to compile`
-
-**Solution:**
-1. Update Rust: `rustup update`
-2. Add wasm32 target: `rustup target add wasm32-unknown-unknown`
-3. Clear build cache: `cargo clean && cargo build --release --target wasm32-unknown-unknown`
-4. Check Stellar CLI version: `stellar version` (should be 21.0+)
-
-### Transaction Signing Fails
-
-**Problem:** "User rejected transaction" or wallet doesn't respond
-
-**Solution:**
-1. Ensure Freighter is unlocked
-2. Check you're on the correct network in Freighter
-3. Verify account has sufficient XLM for fees (~0.00001 XLM per operation)
-4. Try disconnecting and reconnecting wallet in Navbar
+The Dockerfile uses a multi-stage build:
+1. `builder` — installs deps and builds Next.js with `output: 'standalone'`
+2. `runner` — copies only the standalone output for a minimal production image
 
 ---
 
 ## CI/CD
 
-GitHub Actions runs on every push/PR to `main`:
+GitHub Actions workflows:
 
-- Builds the WASM binary
-- Runs all Rust unit tests
+- `rust_ci.yml` — builds WASM + runs Rust tests on push/PR to `main`
+- `frontend_ci.yml` — lints and typechecks the frontend on push/PR to `main`
+- `playwright.yml` — runs Playwright E2E tests on PRs targeting `main`
+- `deploy-testnet.yml` — deploys contracts to Stellar testnet on push to `develop`
 
-See `.github/workflows/rust_ci.yml`.
+Dependabot is configured to keep npm, Cargo, and GitHub Actions dependencies up to date weekly.
 
 ---
 
