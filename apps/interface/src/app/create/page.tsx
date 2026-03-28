@@ -8,6 +8,16 @@ import { useWallet } from "@/context/WalletContext";
 import { buildInitializeTx, submitSignedTx } from "@/lib/soroban";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { uploadToPinata } from "@/lib/pinata";
+import {
+  validateTitle,
+  validateDescription,
+  validateGoal,
+  validateDeadline,
+  validateMinContribution,
+  validateFeeBps,
+  sanitizeTitle,
+  sanitizeDescription,
+} from "@/lib/validation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,7 +77,29 @@ function Field({
 
 // ── Step components ───────────────────────────────────────────────────────────
 
+interface FieldWithErrorProps {
+  label: string;
+  error?: string | null;
+  children: React.ReactNode;
+}
+
+function FieldWithError({ label, error, children }: FieldWithErrorProps) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {children}
+      {error && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</p>}
+    </div>
+  );
+}
+
 function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const titleError = data.title ? validateTitle(data.title) : null;
+  const descError = data.description ? validateDescription(data.description) : null;
+  const goalError = data.goal ? validateGoal(data.goal) : null;
+  const deadlineError = data.deadline ? validateDeadline(data.deadline) : null;
+  const minContribError = data.minContribution ? validateMinContribution(data.minContribution, data.goal) : null;
+
   return (
     <div className="space-y-4">
       <Field label="Contract ID">
@@ -76,23 +108,23 @@ function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
       <Field label="Token Address">
         <input className={inputCls} placeholder="C..." value={data.token} onChange={(e) => set("token", e.target.value)} />
       </Field>
-      <Field label="Title">
+      <FieldWithError label="Title" error={titleError}>
         <input className={inputCls} placeholder="My Campaign" value={data.title} onChange={(e) => set("title", e.target.value)} />
-      </Field>
-      <Field label="Description">
+      </FieldWithError>
+      <FieldWithError label="Description" error={descError}>
         <textarea rows={3} className={inputCls} placeholder="What are you raising funds for?" value={data.description} onChange={(e) => set("description", e.target.value)} />
-      </Field>
+      </FieldWithError>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Goal (XLM)">
+        <FieldWithError label="Goal (XLM)" error={goalError}>
           <input type="number" min="1" className={inputCls} placeholder="10000" value={data.goal} onChange={(e) => set("goal", e.target.value)} />
-        </Field>
-        <Field label="Min Contribution (XLM)">
+        </FieldWithError>
+        <FieldWithError label="Min Contribution (XLM)" error={minContribError}>
           <input type="number" min="1" className={inputCls} placeholder="1" value={data.minContribution} onChange={(e) => set("minContribution", e.target.value)} />
-        </Field>
+        </FieldWithError>
       </div>
-      <Field label="Deadline">
+      <FieldWithError label="Deadline" error={deadlineError}>
         <input type="date" className={inputCls} value={data.deadline} min={new Date().toISOString().split("T")[0]} onChange={(e) => set("deadline", e.target.value)} />
-      </Field>
+      </FieldWithError>
     </div>
   );
 }
@@ -150,6 +182,8 @@ function Step2({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
 }
 
 function Step3({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const feeError = data.feeBps ? validateFeeBps(data.feeBps) : null;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">
@@ -158,9 +192,9 @@ function Step3({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
       <Field label="Platform Fee Address">
         <input className={inputCls} placeholder="G... or C..." value={data.feeAddress} onChange={(e) => set("feeAddress", e.target.value)} />
       </Field>
-      <Field label="Fee (basis points, e.g. 250 = 2.5%)">
+      <FieldWithError label="Fee (basis points, e.g. 250 = 2.5%)" error={feeError}>
         <input type="number" min="0" max="10000" className={inputCls} placeholder="0" value={data.feeBps} onChange={(e) => set("feeBps", e.target.value)} />
-      </Field>
+      </FieldWithError>
     </div>
   );
 }
@@ -198,15 +232,27 @@ function validateStep(step: number, data: FormData): string | null {
   if (step === 0) {
     if (!data.contractId.trim()) return "Contract ID is required.";
     if (!data.token.trim()) return "Token address is required.";
-    if (!data.title.trim()) return "Title is required.";
-    if (!data.description.trim()) return "Description is required.";
-    if (!data.goal || Number(data.goal) <= 0) return "Goal must be greater than 0.";
-    if (!data.deadline) return "Deadline is required.";
-    if (new Date(data.deadline) <= new Date()) return "Deadline must be in the future.";
+    
+    const titleErr = validateTitle(data.title);
+    if (titleErr) return titleErr;
+    
+    const descErr = validateDescription(data.description);
+    if (descErr) return descErr;
+    
+    const goalErr = validateGoal(data.goal);
+    if (goalErr) return goalErr;
+    
+    const deadlineErr = validateDeadline(data.deadline);
+    if (deadlineErr) return deadlineErr;
+    
+    const minContribErr = validateMinContribution(data.minContribution, data.goal);
+    if (minContribErr) return minContribErr;
   }
   if (step === 2) {
     if (data.feeAddress && !data.feeBps) return "Provide fee bps when a fee address is set.";
-    if (data.feeBps && Number(data.feeBps) > 10000) return "Fee cannot exceed 10000 bps (100%).";
+    
+    const feeErr = validateFeeBps(data.feeBps);
+    if (feeErr) return feeErr;
   }
   return null;
 }
@@ -255,8 +301,8 @@ export default function CreateCampaignPage() {
         goal: xlmToStroops(data.goal),
         deadline: deadlineTs,
         minContribution: xlmToStroops(data.minContribution || "1"),
-        title: data.title,
-        description: data.description,
+        title: sanitizeTitle(data.title),
+        description: sanitizeDescription(data.description),
         socialLinks: data.imageUrl ? [data.imageUrl] : undefined,
         platformFeeAddress: data.feeAddress || undefined,
         platformFeeBps: data.feeBps ? Number(data.feeBps) : undefined,
