@@ -16,5 +16,9 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Build contracts
         run: cargo build --release --target wasm32-unknown-unknown
+        - name: Optimize contracts
+        run: |
+          stellar contract optimize --wasm target/wasm32-unknown-unknown/release/crowdfund.wasm
+          stellar contract optimize --wasm target/wasm32-unknown-unknown/release/registry.wasm
       - name: Run tests
         run: cargo test --workspace

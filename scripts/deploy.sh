@@ -21,7 +21,7 @@ cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/
 if [ -z "$REGISTRY_ID" ]; then
   echo "No registry ID provided. Deploying registry contract..."
   REGISTRY_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/registry.wasm \
+  --wasm target/wasm32-unknown-unknown/release/registry.optimized.wasm \
     --network testnet \
     --source "$CREATOR")
   echo "Registry deployed: $REGISTRY_ID"
@@ -31,7 +31,7 @@ fi
 
 echo "Deploying contract to testnet..."
 CONTRACT_ID=$(stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/crowdfund.wasm \
+  --wasm target/wasm32-unknown-unknown/release/crowdfund.optimized.wasm
   --network testnet \
   --source "$CREATOR")
 
