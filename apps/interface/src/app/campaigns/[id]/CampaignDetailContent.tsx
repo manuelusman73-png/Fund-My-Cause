@@ -4,21 +4,15 @@ import { Loader2 } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { ContributionLeaderboard } from "@/components/ui/ContributionLeaderboard";
 import { useCampaign } from "@/hooks/useCampaign";
+import { useWallet } from "@/context/WalletContext";
 import { CampaignActions } from "./CampaignActions";
-
-function truncate(address: string) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-function formatXlm(value: bigint) {
-  return (Number(value) / 10_000_000).toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  });
-}
+import { formatXLM, formatAddress } from "@/lib/format";
 
 export function CampaignDetailContent({ contractId }: { contractId: string }) {
   const { info, stats, loading, error, refresh } = useCampaign(contractId);
+  const { address } = useWallet();
 
   if (loading) {
     return (
@@ -73,7 +67,7 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
               className="font-mono text-gray-500 dark:text-gray-400"
               title={info.creator}
             >
-              {truncate(info.creator)}
+              {formatAddress(info.creator)}
             </span>
           </p>
         </div>
@@ -81,8 +75,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
         <div className="space-y-2">
           <ProgressBar progress={progress} />
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>{formatXlm(stats.totalRaised)} XLM raised</span>
-            <span>{formatXlm(stats.goal)} XLM goal</span>
+            <span>{formatXLM(stats.totalRaised)} raised</span>
+            <span>{formatXLM(stats.goal)} goal</span>
           </div>
         </div>
 
@@ -93,7 +87,7 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
           </div>
           <div className="rounded-xl bg-gray-100 p-4 dark:bg-gray-900">
             <p className="text-xl font-semibold">
-              {formatXlm(stats.averageContribution)} XLM
+              {formatXLM(stats.averageContribution)}
             </p>
             <p className="mt-1 text-xs text-gray-500">Avg. contribution</p>
           </div>
@@ -106,6 +100,12 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
         <p className="leading-relaxed text-gray-700 dark:text-gray-300">
           {info.description}
         </p>
+
+        <ContributionLeaderboard
+          contractId={contractId}
+          totalRaised={stats.totalRaised}
+          connectedAddress={address}
+        />
 
         <ShareButton campaignId={contractId} campaignTitle={info.title} />
 

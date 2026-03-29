@@ -285,6 +285,36 @@ export async function fetchContribution(
   }
 }
 
+export interface ContributorEntry {
+  address: string;
+  amount: bigint; // stroops
+}
+
+/**
+ * Fetches a paginated page of contributors via the contract's `contributor_list` view.
+ * Returns an empty array if the contract doesn't support the function.
+ */
+export async function fetchContributorList(
+  contractId: string,
+  page = 0,
+  pageSize = 10,
+): Promise<ContributorEntry[]> {
+  if (!isValidContractId(contractId)) return [];
+  try {
+    const result = await simulateView(contractId, "contributor_list", [
+      nativeToScVal(page, { type: "u32" }),
+      nativeToScVal(pageSize, { type: "u32" }),
+    ]);
+    if (!Array.isArray(result)) return [];
+    return (result as [string, unknown][]).map(([addr, amt]) => ({
+      address: String(addr),
+      amount: toBigIntValue(amt),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchAllCampaigns(): Promise<CampaignData[]> {
   if (CONTRACT_IDS.length === 0) return [];
 
