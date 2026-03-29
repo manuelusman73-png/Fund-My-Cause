@@ -16,5 +16,16 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Build contracts
         run: cargo build --release --target wasm32-unknown-unknown
+      - name: Check contract WASM size
+        run: |
+          WASM=target/wasm32-unknown-unknown/release/crowdfund.wasm
+          SIZE=$(wc -c < "$WASM")
+          echo "Contract size: ${SIZE} bytes"
+          MAX=65536
+          if [ "$SIZE" -gt "$MAX" ]; then
+            echo "ERROR: Contract size ${SIZE} bytes exceeds the 64 KB Soroban limit (${MAX} bytes)."
+            exit 1
+          fi
+          echo "OK: Contract size is within the 64 KB limit."
       - name: Run tests
         run: cargo test --workspace
