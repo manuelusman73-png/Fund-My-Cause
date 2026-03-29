@@ -9,12 +9,16 @@ import { isValidContractId } from "@/lib/validation";
  * @property {boolean} loading - True while fetching campaign data
  * @property {string|null} error - Error message if fetch failed, null otherwise
  * @property {Function} refresh - Callback to manually refetch campaign data
+ * @property {Function} applyOptimisticContribution - Optimistically update raised/contributorCount before tx confirms
+ * @property {Function} rollbackOptimistic - Roll back optimistic update on tx failure
  */
 interface UseCampaignResult {
   info: CampaignData | null;
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  applyOptimisticContribution: (amountXlm: number) => void;
+  rollbackOptimistic: () => void;
 }
 
 /**
@@ -30,6 +34,7 @@ interface UseCampaignResult {
  */
 export function useCampaign(contractId: string): UseCampaignResult {
   const [info, setInfo] = useState<CampaignData | null>(null);
+  const [optimisticOverride, setOptimisticOverride] = useState<Partial<CampaignData> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -49,12 +54,43 @@ export function useCampaign(contractId: string): UseCampaignResult {
     }
 
     fetchCampaign(contractId)
-      .then((data) => { if (!cancelled) { setInfo(data); setLoading(false); } })
-      .catch((e: unknown) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false); } });
+      .then((data) => {
+        if (!cancelled) {
+          setInfo(data);
+          setOptimisticOverride(null); // clear override on fresh poll
+          setLoading(false);
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+          setLoading(false);
+        }
+      });
     return () => { cancelled = true; };
   }, [contractId, tick]);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
-  return { info, loading, error, refresh };
+  const applyOptimisticContribution = useCallback((amountXlm: number) => {
+    setInfo((prev) => {
+      if (!prev) return prev;
+      setOptimisticOverride({ raised: prev.raised, contributorCount: prev.contributorCount });
+      return {
+        ...prev,
+        raised: prev.raised + amountXlm,
+        contributorCount: prev.contributorCount + 1,
+      };
+    });
+  }, []);
+
+  const rollbackOptimistic = useCallback(() => {
+    setInfo((prev) => {
+      if (!prev || !optimisticOverride) return prev;
+      return { ...prev, ...optimisticOverride };
+    });
+    setOptimisticOverride(null);
+  }, [optimisticOverride]);
+
+  return { info, loading, error, refresh, applyOptimisticContribution, rollbackOptimistic };
 }

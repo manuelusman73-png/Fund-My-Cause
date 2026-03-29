@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -122,8 +123,15 @@ export default function Home() {
             const isFunded = progress >= 100;
             return (
               <div key={c.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.image} alt={c.title} className="w-full h-48 object-cover" />
+                <div className="relative w-full h-48">
+                  <Image
+                    src={c.image}
+                    alt={c.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                  />
+                </div>
                 <div className="p-5 space-y-3">
                   <h3 className="text-base font-semibold">{c.title}</h3>
                   <p className="text-gray-400 text-sm">{c.description}</p>

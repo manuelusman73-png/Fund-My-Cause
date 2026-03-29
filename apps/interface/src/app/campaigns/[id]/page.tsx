@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -76,12 +77,14 @@ export default async function CampaignDetailPage({
       <Navbar />
 
       {/* Hero image */}
-      <div className="w-full h-72 md:h-96 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="w-full h-72 md:h-96 overflow-hidden relative">
+        <Image
           src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1600"
           alt={campaign.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
         />
       </div>
 

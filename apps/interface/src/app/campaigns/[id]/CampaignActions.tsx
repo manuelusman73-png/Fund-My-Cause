@@ -27,6 +27,10 @@ interface Props {
   /** Minimum contribution in stroops. */
   minContribution?: bigint;
   status: CampaignStatus;
+  /** Called with contribution amount (XLM) immediately on submit for optimistic UI */
+  onOptimisticContribute?: (amountXlm: number) => void;
+  /** Called on tx failure to roll back optimistic update */
+  onRollbackOptimistic?: () => void;
 }
 
 type ActionStatus = "idle" | "simulating" | "signing" | "submitting" | "done" | "error";
@@ -40,6 +44,8 @@ export function CampaignActions({
   status: initialStatus,
   raisedXlm = 0,
   minContribution,
+  onOptimisticContribute,
+  onRollbackOptimistic,
 }: Props) {
   const { address, connect, signTx, networkMismatch } = useWallet();
   const [pledging, setPledging] = useState(false);
@@ -208,6 +214,8 @@ export function CampaignActions({
           minContribution={minContribution}
           onClose={() => setPledging(false)}
           onSuccess={handlePledgeSuccess}
+          onOptimisticContribute={onOptimisticContribute}
+          onRollbackOptimistic={onRollbackOptimistic}
         />
       )}
     </>

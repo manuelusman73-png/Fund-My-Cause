@@ -249,11 +249,12 @@ function CampaignsInner() {
         <>
           <p className="text-sm text-gray-500 mb-4">{filtered.length} campaign{filtered.length !== 1 ? "s" : ""} found</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {paginated.map((campaign) => (
+            {paginated.map((campaign, i) => (
               <CampaignCard
                 key={campaign.id}
                 campaign={campaign}
                 onPledge={(id) => setPledge(id)}
+                index={i}
               />
             ))}
           </div>

@@ -63,4 +63,43 @@ describe("useCampaign", () => {
     expect(fetchCampaign).toHaveBeenCalledTimes(2);
     expect(result.current.info?.raised).toBe(750);
   });
+
+  it("applyOptimisticContribution updates raised and contributorCount immediately", async () => {
+    fetchCampaign.mockResolvedValue(mockCampaign);
+    const { result } = renderHook(() => useCampaign("CABC123"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.applyOptimisticContribution(50));
+
+    expect(result.current.info?.raised).toBe(550);
+    expect(result.current.info?.contributorCount).toBe(6);
+  });
+
+  it("rollbackOptimistic restores previous values", async () => {
+    fetchCampaign.mockResolvedValue(mockCampaign);
+    const { result } = renderHook(() => useCampaign("CABC123"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.applyOptimisticContribution(50));
+    expect(result.current.info?.raised).toBe(550);
+
+    act(() => result.current.rollbackOptimistic());
+    expect(result.current.info?.raised).toBe(500);
+    expect(result.current.info?.contributorCount).toBe(5);
+  });
+
+  it("clears optimistic override on next poll", async () => {
+    fetchCampaign.mockResolvedValue(mockCampaign);
+    const { result } = renderHook(() => useCampaign("CABC123"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.applyOptimisticContribution(50));
+    expect(result.current.info?.raised).toBe(550);
+
+    fetchCampaign.mockResolvedValue({ ...mockCampaign, raised: 600 });
+    act(() => result.current.refresh());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.info?.raised).toBe(600);
+  });
 });

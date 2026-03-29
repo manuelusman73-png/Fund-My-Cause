@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect  } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
@@ -19,6 +20,10 @@ interface PledgeModalProps {
   onClose: () => void;
   /** Called after a successful pledge so the parent can refresh stats. */
   onSuccess?: () => void;
+  /** Called immediately on submit with XLM amount for optimistic UI update. */
+  onOptimisticContribute?: (amountXlm: number) => void;
+  /** Called on tx failure to roll back optimistic update. */
+  onRollbackOptimistic?: () => void;
 }
 
 export function PledgeModal({
@@ -27,6 +32,8 @@ export function PledgeModal({
   minContribution = 1n,
   onClose,
   onSuccess,
+  onOptimisticContribute,
+  onRollbackOptimistic,
 }: PledgeModalProps) {
   const { address, connect, signTx, isSigning } = useWallet();
   const { exists: accountExists, loading: accountLoading } = useAccountExists(address);
@@ -108,6 +115,7 @@ export function PledgeModal({
     setErrorMessage("");
     setPendingTx(true);
     setTxStatus("signing");
+    onOptimisticContribute?.(xlm);
 
     try {
       const hash = await contribute(contractId, address, stroops, async (xdr) => {
@@ -127,6 +135,7 @@ export function PledgeModal({
       const msg = err instanceof Error ? err.message : "Transaction failed.";
       setErrorMessage(msg);
       setTxStatus("error");
+      onRollbackOptimistic?.();
       addToast(msg, "error");
     } finally {
       setPendingTx(false);
@@ -175,14 +184,20 @@ export function PledgeModal({
   const titleId = "pledge-modal-title";
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pledge-modal-title"
-        className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-700 space-y-4"
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
       >
+        <motion.div
+          className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-700 space-y-4"
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.92, opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
         <div className="flex justify-between items-center">
           <h2 id="pledge-modal-title" className="text-lg font-semibold">Pledge to {campaignTitle}</h2>
           <button onClick={onClose} aria-label="Close" disabled={isProcessing}>
@@ -233,7 +248,8 @@ export function PledgeModal({
             </button>
           </>
         )}
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
