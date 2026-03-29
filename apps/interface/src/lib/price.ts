@@ -1,16 +1,18 @@
+import { COINGECKO_API_URL, XLM_PRICE_CACHE_SECONDS } from "@/lib/constants";
+
 /**
  * Fetches the current XLM/USD price from CoinGecko's public API.
  * Returns null if the API is unavailable — callers should hide USD amounts gracefully.
  *
- * Next.js `revalidate: 300` caches the response for 5 minutes at the edge.
+ * Caches the response at the edge for the duration specified in constants.
  * @returns {Promise<number|null>} Current XLM price in USD, or null if unavailable
  */
 export async function fetchXlmPrice(): Promise<number | null> {
   try {
     const res = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd",
+      `${COINGECKO_API_URL}?ids=stellar&vs_currencies=usd`,
       {
-        next: { revalidate: 300 }, // 5-minute server-side cache
+        next: { revalidate: XLM_PRICE_CACHE_SECONDS },
         headers: { Accept: "application/json" },
       },
     );

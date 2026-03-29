@@ -1,3 +1,5 @@
+import { PINATA_API_URL } from "@/lib/constants";
+
 /**
  * Uploads a file to IPFS via Pinata's pinning service.
  * Requires NEXT_PUBLIC_PINATA_API_KEY and NEXT_PUBLIC_PINATA_SECRET_API_KEY env vars.
@@ -13,7 +15,7 @@ export async function uploadToPinata(file: File): Promise<string> {
   const body = new FormData();
   body.append("file", file);
 
-  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+  const res = await fetch(PINATA_API_URL, {
     method: "POST",
     headers: { pinata_api_key: key, pinata_secret_api_key: secret },
     body,
