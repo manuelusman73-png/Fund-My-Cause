@@ -44,9 +44,9 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
   if (status === "idle") return null;
 
   return (
-    <div className="space-y-4 p-4 bg-gray-800/50 rounded-xl">
+    <div className="space-y-4 p-4 bg-gray-800/50 rounded-xl" aria-live="polite" aria-atomic="true">
       {/* Steps */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" role="list" aria-label="Transaction steps">
         {steps.map((step, index) => {
           const Icon = step.icon;
           const isCompleted = index < currentIndex;
@@ -59,7 +59,7 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
               status === "confirming");
 
           return (
-            <div key={step.key} className="flex items-center">
+            <div key={step.key} className="flex items-center" role="listitem" aria-label={`${step.label}: ${isCompleted ? "completed" : isCurrent ? "in progress" : "pending"}`}>
               <div
                 className={`flex items-center gap-2 ${
                   isCompleted
@@ -120,6 +120,7 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
           {onDismiss && (
             <button
               onClick={onDismiss}
+              aria-label="Dismiss transaction error"
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
             >
               Dismiss

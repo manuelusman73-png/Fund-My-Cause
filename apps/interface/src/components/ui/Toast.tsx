@@ -57,7 +57,12 @@ function ToastContainer({ toasts, removeToast }: { toasts: Toast[]; removeToast:
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
+      role="status"
+      aria-live="polite"
+      aria-label="Notifications"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
       ))}
@@ -96,7 +101,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
           </a>
         )}
       </div>
-      <button onClick={onClose} className="text-gray-400 hover:text-white">
+      <button onClick={onClose} aria-label="Dismiss notification" className="text-gray-400 hover:text-white">
         <X size={16} />
       </button>
     </div>

@@ -15,7 +15,14 @@ export function ProgressBar({ progress, animated = false }: ProgressBarProps) {
     <div className="flex items-center gap-3">
       <div className="flex-1 relative">
         {/* Progress bar container */}
-        <div className="w-full bg-gray-800 rounded-full h-2 relative overflow-hidden">
+        <div
+          role="progressbar"
+          aria-valuenow={Math.round(clamped)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Funding progress: ${Math.round(clamped)}%`}
+          className="w-full bg-gray-800 rounded-full h-2 relative overflow-hidden"
+        >
           {/* Progress bar fill */}
           <div
             className={`h-2 rounded-full transition-all duration-500 ${
@@ -28,7 +35,7 @@ export function ProgressBar({ progress, animated = false }: ProgressBarProps) {
         </div>
       </div>
       {/* Percentage label */}
-      <span className={`text-sm font-medium min-w-[3rem] text-right ${
+      <span aria-hidden="true" className={`text-sm font-medium min-w-[3rem] text-right ${
         isFunded ? "text-green-400" : "text-indigo-400"
       }`}>
         {Math.round(clamped)}%

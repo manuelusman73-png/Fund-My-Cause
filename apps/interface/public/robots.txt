@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fund-my-cause.app/sitemap.xml

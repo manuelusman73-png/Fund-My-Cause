@@ -38,3 +38,7 @@ jobs:
       - name: Typecheck (apps/interface)
         working-directory: apps/interface
         run: npx tsc --noEmit
+
+      - name: Audit dependencies
+        working-directory: apps/interface
+        run: npm audit --audit-level=high

@@ -175,6 +175,7 @@ export function CampaignActions({
           <button
             onClick={() => (address ? setPledging(true) : connect())}
             disabled={networkMismatch || isProcessing}
+            aria-label={address ? `Pledge to ${campaignTitle}` : "Connect wallet to pledge"}
             className="w-full py-3 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 transition text-white disabled:opacity-50"
           >
             {address ? "Pledge Now" : "Connect Wallet to Pledge"}
@@ -186,6 +187,7 @@ export function CampaignActions({
           <button
             onClick={handleRefund}
             disabled={isProcessing}
+            aria-label={`Claim refund of ${userContribution.toLocaleString()} XLM`}
             className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 transition text-white disabled:opacity-50"
           >
             Claim Refund ({userContribution.toLocaleString()} XLM)
@@ -197,6 +199,7 @@ export function CampaignActions({
           <button
             onClick={handleWithdraw}
             disabled={isProcessing}
+            aria-label="Withdraw campaign funds to your wallet"
             className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 transition text-white disabled:opacity-50"
           >
             Withdraw Funds

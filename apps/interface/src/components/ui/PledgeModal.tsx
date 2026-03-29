@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect  } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
@@ -44,6 +44,48 @@ export function PledgeModal({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [pendingTx, setPendingTx] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const triggerRef = useRef<Element | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Store the element that opened the modal so focus can be returned on close
+  React.useEffect(() => {
+    triggerRef.current = document.activeElement;
+    return () => {
+      (triggerRef.current as HTMLElement | null)?.focus();
+    };
+  }, []);
+
+  // Close on Escape
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isProcessing) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose]);
+
+  // Trap focus inside dialog
+  React.useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length) focusable[0].focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, []);
 
   const minXlm = Number(minContribution) / 1e7;
 
@@ -117,6 +159,30 @@ export function PledgeModal({
 
   const isProcessing = txStatus !== "idle" || pendingTx || isSigning;
 
+  // Focus trap
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first)?.focus();
+      }
+    };
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, []);
+
+  const titleId = "pledge-modal-title";
+
   return (
     <AnimatePresence>
       <motion.div
@@ -133,7 +199,7 @@ export function PledgeModal({
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Pledge to {campaignTitle}</h2>
+          <h2 id="pledge-modal-title" className="text-lg font-semibold">Pledge to {campaignTitle}</h2>
           <button onClick={onClose} aria-label="Close" disabled={isProcessing}>
             <X size={20} />
           </button>
@@ -154,7 +220,11 @@ export function PledgeModal({
                   ⚠️ This account is not funded on the network. Your transaction will fail.
                 </p>
               )}
+              <label htmlFor="pledge-amount" className="sr-only">
+                Amount in XLM (minimum {minXlm} XLM)
+              </label>
               <input
+                id="pledge-amount"
                 type="number"
                 placeholder={`Amount in XLM (min ${minXlm})`}
                 value={amount}
@@ -162,6 +232,7 @@ export function PledgeModal({
                 step="0.1"
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(e.target.value)}
                 disabled={isProcessing}
+                aria-label={`Amount in XLM, minimum ${minXlm} XLM`}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none disabled:opacity-50"
               />
               {minContribution > XLM_TO_STROOPS && (

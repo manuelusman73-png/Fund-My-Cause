@@ -1,6 +1,7 @@
 import React from "react";
 import { fetchTransactionHistory } from "@/lib/soroban";
 import { ExternalLink } from "lucide-react";
+import { EmptyState, NoTransactionsIllustration } from "@/components/ui/EmptyState";
 
 interface Props {
   contractId: string;
@@ -29,14 +30,12 @@ export async function TransactionHistory({ contractId }: Props) {
   if (records.length === 0) {
     return (
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          Recent Contributions
-        </h2>
-        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-6 py-8 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No contributions yet. Be the first to pledge!
-          </p>
-        </div>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Recent Contributions</h2>
+        <EmptyState
+          illustration={<NoTransactionsIllustration />}
+          title="No contributions yet"
+          description="Be the first to pledge and help this campaign reach its goal."
+        />
       </div>
     );
   }

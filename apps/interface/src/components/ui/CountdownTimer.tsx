@@ -48,7 +48,11 @@ export function CountdownTimer({ deadline }: CountdownTimerProps) {
   }, [deadline]);
 
   return (
-    <p className={`text-xs ${isUrgent ? "text-red-400" : "text-gray-500"}`}>
+    <p
+      aria-live="polite"
+      aria-atomic="true"
+      className={`text-xs ${isUrgent ? "text-red-400" : "text-gray-500"}`}
+    >
       {timeLeft}
     </p>
   );

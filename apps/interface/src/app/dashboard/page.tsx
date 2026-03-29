@@ -6,6 +6,7 @@ import { Loader2, PlusCircle } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { WalletGuard } from "@/components/WalletGuard";
+import { EmptyState, NoDashboardCampaignsIllustration } from "@/components/ui/EmptyState";
 import { useWallet } from "@/context/WalletContext";
 import { useCampaign } from "@/hooks/useCampaign";
 import {
@@ -78,6 +79,18 @@ function EditModal({
   const [description, setDescription] = useState(campaign.description);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const triggerRef = React.useRef<Element | null>(null);
+
+  React.useEffect(() => {
+    triggerRef.current = document.activeElement;
+    return () => { (triggerRef.current as HTMLElement | null)?.focus(); };
+  }, []);
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !saving) onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose, saving]);
 
   const save = async () => {
     if (!title.trim()) {
@@ -101,8 +114,13 @@ function EditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-gray-700 bg-gray-900 p-6">
-        <h2 className="text-lg font-semibold">Edit Metadata</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-modal-title"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-gray-700 bg-gray-900 p-6"
+      >
+        <h2 id="edit-modal-title" className="text-lg font-semibold">Edit Metadata</h2>
         <div>
           <label className="mb-1 block text-sm text-gray-400">Title</label>
           <input
@@ -329,15 +347,12 @@ export default function DashboardPage() {
           )}
 
           {!loading && contractIds.length === 0 && (
-            <div className="py-20 text-center text-gray-500">
-              <p>No campaigns found for this wallet.</p>
-              <button
-                onClick={() => router.push("/create")}
-                className="mt-4 text-sm text-indigo-400 transition hover:text-indigo-300"
-              >
-                Create your first campaign →
-              </button>
-            </div>
+            <EmptyState
+              illustration={<NoDashboardCampaignsIllustration />}
+              title="No campaigns yet"
+              description="You haven't created any campaigns. Launch your first one and start raising funds on Stellar."
+              action={{ label: "Create Campaign", onClick: () => router.push("/create") }}
+            />
           )}
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">

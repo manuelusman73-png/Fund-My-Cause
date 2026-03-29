@@ -71,6 +71,13 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0 }:
           className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
           onClick={() => onPledge?.(campaign.id)}
           disabled={isDisabled}
+          aria-label={
+            isFunded
+              ? `${campaign.title} — successfully funded`
+              : isEnded
+              ? `${campaign.title} — campaign ended`
+              : `Pledge to ${campaign.title}`
+          }
         >
           {isFunded ? "Successfully Funded" : isEnded ? "Campaign Ended" : "Pledge Now"}
         </button>

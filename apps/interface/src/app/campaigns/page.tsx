@@ -5,6 +5,7 @@ import { fetchAllCampaigns } from "@/lib/soroban";
 import { fetchXlmPrice } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
 import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
+import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
@@ -25,13 +26,11 @@ async function CampaignGrid() {
 
   if (campaigns.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
-        <p className="text-5xl">🌱</p>
-        <h2 className="text-xl font-semibold text-white">No campaigns yet</h2>
-        <p className="text-gray-400 max-w-sm">
-          Be the first to launch a campaign on Fund-My-Cause and start raising funds on Stellar.
-        </p>
-      </div>
+      <EmptyState
+        illustration={<NoCampaignsIllustration />}
+        title="No campaigns yet"
+        description="Be the first to launch a campaign on Fund-My-Cause and start raising funds on Stellar."
+      />
     );
   }
 
@@ -50,6 +49,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { CampaignCard } from "@/components/ui/CampaignCard";
 import { PledgeModal } from "@/components/ui/PledgeModal";
+import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
 import { Campaign } from "@/types/campaign";
 import { Search } from "lucide-react";
 
@@ -207,11 +207,25 @@ function CampaignsInner() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-8">
-        {FILTER_TABS.map((tab) => (
+      <div className="flex gap-2 mb-8" role="tablist" aria-label="Filter campaigns">
+        {FILTER_TABS.map((tab, idx) => (
           <button
             key={tab.value}
+            role="tab"
+            aria-selected={filter === tab.value}
+            tabIndex={filter === tab.value ? 0 : -1}
             onClick={() => setParam("filter", tab.value)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") {
+                const next = FILTER_TABS[(idx + 1) % FILTER_TABS.length];
+                setParam("filter", next.value);
+                (e.currentTarget.parentElement?.children[(idx + 1) % FILTER_TABS.length] as HTMLElement)?.focus();
+              } else if (e.key === "ArrowLeft") {
+                const prev = FILTER_TABS[(idx - 1 + FILTER_TABS.length) % FILTER_TABS.length];
+                setParam("filter", prev.value);
+                (e.currentTarget.parentElement?.children[(idx - 1 + FILTER_TABS.length) % FILTER_TABS.length] as HTMLElement)?.focus();
+              }
+            }}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               filter === tab.value
                 ? "bg-indigo-600 text-white"
@@ -225,7 +239,12 @@ function CampaignsInner() {
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <p className="text-center text-gray-500 py-20">No campaigns match your filters.</p>
+        <EmptyState
+          illustration={<NoCampaignsIllustration />}
+          title="No campaigns found"
+          description="Try adjusting your search or filters to find what you're looking for."
+          action={{ label: "Clear filters", onClick: () => router.replace("/campaigns") }}
+        />
       ) : (
         <>
           <p className="text-sm text-gray-500 mb-4">{filtered.length} campaign{filtered.length !== 1 ? "s" : ""} found</p>

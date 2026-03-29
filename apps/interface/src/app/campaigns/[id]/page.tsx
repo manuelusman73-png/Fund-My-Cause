@@ -20,11 +20,29 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://fund-my-cause.app";
   try {
     const c = await fetchCampaign(id);
+    const description = c.description.slice(0, 160);
+    const url = `${BASE_URL}/campaigns/${id}`;
+    const image = "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1200";
     return {
       title: `${c.title} — Fund-My-Cause`,
-      description: c.description.slice(0, 160),
+      description,
+      openGraph: {
+        title: c.title,
+        description,
+        url,
+        siteName: "Fund-My-Cause",
+        images: [{ url: image, width: 1200, height: 630, alt: c.title }],
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: c.title,
+        description,
+        images: [image],
+      },
     };
   } catch {
     return { title: "Campaign — Fund-My-Cause" };
