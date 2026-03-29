@@ -35,6 +35,7 @@ export function Navbar() {
             <span className="text-sm text-gray-600 dark:text-gray-300">{addressLabel}</span>
             <button
               onClick={disconnect}
+              aria-label="Disconnect wallet"
               className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
             >
               <LogOut size={16} /> Disconnect
@@ -71,7 +72,8 @@ export function Navbar() {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-          aria-label="Toggle menu"
+          aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileMenuOpen}
         >
           {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
