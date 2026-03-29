@@ -50,7 +50,7 @@ exports[`Navbar snapshots matches snapshot in connected state 1`] = `
           <span
             class="text-sm text-gray-600 dark:text-gray-300"
           >
-            GABCD...WXYZ
+            GABCD...WXYZ · 42.50 XLM
           </span>
           <button
             class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"

@@ -6,7 +6,10 @@ const config = {
   transform: {
     "^.+\\.(ts|tsx)$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }],
   },
-  moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" },
+  moduleNameMapper: {
+    "^@/lib/constants$": "<rootDir>/src/__mocks__/lib/constants.ts",
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
   coverageThreshold: {
     global: {
       statements: 80,

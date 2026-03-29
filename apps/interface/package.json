@@ -9,17 +9,15 @@
     "lint": "eslint",
     "test": "jest --run",
     "test:coverage": "jest --coverage",
-    "test:vitest": "vitest run",
+    "test:vitest": "vitest --run",
     "test:vitest:watch": "vitest",
     "test:vitest:coverage": "vitest run --coverage"
-    "test:vitest": "vitest --run",
-    "test:coverage": "vitest --coverage"
-    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^14.6.1",
+    "@walletconnect/sign-client": "^2.17.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.36.0",
@@ -38,9 +36,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^2",
-    "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.2",
+    "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jsdom": "^24",
@@ -49,7 +46,6 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",
     "typescript": "^5",
-    "vitest": "^2"
     "vitest": "^4.1.2"
   }
 }

@@ -6,6 +6,7 @@ import { useWallet } from "@/context/WalletContext";
 import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
 import { useToast } from "@/components/ui/Toast";
 import { contribute } from "@/lib/contract";
+import { useAccountExists } from "@/hooks/useAccountExists";
 
 const XLM_TO_STROOPS = 10_000_000n;
 const PLEDGE_DEBOUNCE_MS = 2000;
@@ -27,7 +28,8 @@ export function PledgeModal({
   onClose,
   onSuccess,
 }: PledgeModalProps) {
-  const { address, connect, signTx } = useWallet();
+  const { address, connect, signTx, isSigning } = useWallet();
+  const { exists: accountExists, loading: accountLoading } = useAccountExists(address);
   const { addToast } = useToast();
   const [amount, setAmount] = useState("");
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
@@ -104,7 +106,7 @@ export function PledgeModal({
     setErrorMessage("");
   };
 
-  const isProcessing = txStatus !== "idle" || pendingTx;
+  const isProcessing = txStatus !== "idle" || pendingTx || isSigning;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -126,6 +128,11 @@ export function PledgeModal({
         ) : (
           <>
             <div className="space-y-1">
+              {address && !accountLoading && !accountExists && (
+                <p className="text-xs text-yellow-400">
+                  ⚠️ This account is not funded on the network. Your transaction will fail.
+                </p>
+              )}
               <input
                 type="number"
                 placeholder={`Amount in XLM (min ${minXlm})`}
