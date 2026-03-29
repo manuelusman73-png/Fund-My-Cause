@@ -3,6 +3,7 @@ import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ReactQueryProvider } from "@/context/ReactQueryProvider";
 
 export const metadata: Metadata = {
   title: "Fund-My-Cause",
@@ -15,7 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <ToastProvider>
-            <WalletProvider>{children}</WalletProvider>
+            <ReactQueryProvider>
+              <WalletProvider>{children}</WalletProvider>
+            </ReactQueryProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

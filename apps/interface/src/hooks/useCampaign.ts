@@ -1,60 +1,84 @@
-import { useState, useEffect, useCallback } from "react";
-import { fetchCampaign, type CampaignData } from "@/lib/soroban";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchCampaignView, type CampaignInfo, type CampaignStats } from "@/lib/soroban";
 import { isValidContractId } from "@/lib/validation";
 
-/**
- * Result object returned by useCampaign hook.
- * @interface UseCampaignResult
- * @property {CampaignData|null} info - Fetched campaign data, or null if loading/error
- * @property {boolean} loading - True while fetching campaign data
- * @property {string|null} error - Error message if fetch failed, null otherwise
- * @property {Function} refresh - Callback to manually refetch campaign data
- */
-interface UseCampaignResult {
-  info: CampaignData | null;
-  loading: boolean;
-  error: string | null;
-  refresh: () => void;
+export function useCampaign(contractId: string) {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading: loading, error: rawError } = useQuery<
+    { info: CampaignInfo; stats: CampaignStats },
+    Error
+  >({
+    queryKey: ["campaign", contractId],
+    queryFn: () => fetchCampaignView(contractId),
+    enabled: isValidContractId(contractId),
+    retry: false,
+  });
+
+  const error =
+    rawError?.message ??
+    (isValidContractId(contractId) ? null : `Invalid contract ID format: ${contractId}`);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] });
+
+  return {
+    info: data?.info ?? null,
+    stats: data?.stats ?? null,
+    loading,
+    error,
+    refresh,
+  };
 }
 
-/**
- * Hook to fetch and manage campaign data from a Soroban contract.
- * Automatically refetches when contractId changes. Supports manual refresh via returned callback.
- * @param {string} contractId - The Soroban contract address to fetch data from
- * @returns {UseCampaignResult} Campaign data, loading state, error, and refresh function
- * @example
- * const { info, loading, error, refresh } = useCampaign(contractId);
- * if (loading) return <div>Loading...</div>;
- * if (error) return <div>Error: {error}</div>;
- * return <div>{info?.title}</div>;
- */
-export function useCampaign(contractId: string): UseCampaignResult {
-  const [info, setInfo] = useState<CampaignData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+export function useContribute(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      contributor,
+      amount,
+      signTx,
+    }: {
+      contributor: string;
+      amount: bigint;
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { contribute } = await import("@/lib/contract");
+      return contribute(contractId, contributor, amount, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+export function useWithdraw(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      creator,
+      signTx,
+    }: {
+      creator: string;
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { withdraw } = await import("@/lib/contract");
+      return withdraw(contractId, creator, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
+}
 
-    // Validate contract ID format early
-    if (!isValidContractId(contractId)) {
-      if (!cancelled) {
-        setError(`Invalid contract ID format: ${contractId}`);
-        setLoading(false);
-      }
-      return;
-    }
-
-    fetchCampaign(contractId)
-      .then((data) => { if (!cancelled) { setInfo(data); setLoading(false); } })
-      .catch((e: unknown) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false); } });
-    return () => { cancelled = true; };
-  }, [contractId, tick]);
-
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
-
-  return { info, loading, error, refresh };
+export function useRefund(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      contributor,
+      signTx,
+    }: {
+      contributor: string;
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { refundSingle } = await import("@/lib/contract");
+      return refundSingle(contractId, contributor, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
 }
