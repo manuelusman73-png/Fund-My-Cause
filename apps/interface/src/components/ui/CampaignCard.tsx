@@ -51,7 +51,7 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0 }:
         <div className="relative w-full h-48">
           <Image
             src={campaign.image}
-            alt={campaign.title}
+            alt={`${campaign.title} - campaign header image`}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 33vw"

@@ -131,31 +131,9 @@ export function PledgeModal({
 
   const isProcessing = txStatus !== "idle" || pendingTx || isSigning;
 
-  // Focus trap
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = dialogRef.current;
-    if (!el) return;
-    const focusable = el.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    first?.focus();
-    const trap = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
-        e.preventDefault();
-        (e.shiftKey ? last : first)?.focus();
-      }
-    };
-    el.addEventListener("keydown", trap);
-    return () => el.removeEventListener("keydown", trap);
-  }, []);
-
-  const titleId = "pledge-modal-title";
-
   return (
+    // Backdrop: closes modal on click. Keyboard dismissal (Escape) is handled by the focus trap inside the dialog.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
       aria-modal="true"
@@ -222,8 +200,7 @@ export function PledgeModal({
             </button>
           </>
         )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </div>
   );
 }

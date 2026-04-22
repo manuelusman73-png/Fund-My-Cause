@@ -142,11 +142,16 @@ export default function Home() {
               <div key={c.id} className="relative bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
                 {c.featured && (
                   <span className="absolute top-3 left-3 z-10 flex items-center gap-1 bg-yellow-500/90 text-yellow-950 text-xs font-semibold px-2 py-0.5 rounded-full">
-                    ⭐ Featured
+                    <span aria-hidden="true">⭐</span> Featured
                   </span>
                 )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.image} alt={c.title} className="w-full h-48 object-cover" />
+                <Image
+                  src={c.image}
+                  alt={`${c.title} - campaign header image`}
+                  width={480}
+                  height={192}
+                  className="w-full h-48 object-cover"
+                />
                 <div className="p-5 space-y-3">
                   <h3 className="text-base font-semibold">{c.title}</h3>
                   <p className="text-gray-400 text-sm">{c.description}</p>
@@ -158,6 +163,7 @@ export default function Home() {
                   <p className="text-xs text-gray-500">{formatTimeLeft(deadlineSecs)} left</p>
                   <Link
                     href={`/campaigns`}
+                    aria-label={`View and pledge to ${c.title}`}
                     className="block w-full py-2 rounded-xl font-medium text-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition"
                   >
                     {isFunded ? "Successfully Funded" : "Pledge Now"}

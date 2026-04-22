@@ -95,6 +95,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
             href={`https://stellar.expert/explorer/testnet/tx/${toast.txHash}`}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="View transaction on Stellar Expert (opens in new tab)"
             className="text-xs text-indigo-400 hover:underline mt-1 inline-block"
           >
             View on Stellar Expert →

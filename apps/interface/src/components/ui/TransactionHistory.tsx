@@ -64,7 +64,9 @@ export async function TransactionHistory({ contractId }: Props) {
               <th className="px-4 py-2 text-left font-medium">Contributor</th>
               <th className="px-4 py-2 text-right font-medium">Amount</th>
               <th className="px-4 py-2 text-right font-medium">Date</th>
-              <th className="px-4 py-2 text-right font-medium sr-only">Link</th>
+              <th className="px-4 py-2 text-right font-medium" aria-label="View transaction link">
+                <span className="sr-only">Link</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

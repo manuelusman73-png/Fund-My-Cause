@@ -57,6 +57,7 @@ export function ShareButton({ campaignId, campaignTitle }: ShareButtonProps) {
         onClick={handleCopy}
         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition relative"
         aria-label="Copy campaign URL"
+        aria-describedby={showTooltip ? "copy-tooltip" : undefined}
       >
         {copied ? (
           <>
@@ -72,7 +73,11 @@ export function ShareButton({ campaignId, campaignTitle }: ShareButtonProps) {
         
         {/* Tooltip */}
         {showTooltip && (
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg whitespace-nowrap z-10">
+          <div
+            id="copy-tooltip"
+            role="tooltip"
+            className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg whitespace-nowrap z-10"
+          >
             Copied to clipboard!
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
           </div>

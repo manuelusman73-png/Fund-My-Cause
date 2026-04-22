@@ -121,8 +121,9 @@ function EditModal({
       >
         <h2 id="edit-modal-title" className="text-lg font-semibold">Edit Metadata</h2>
         <div>
-          <label className="mb-1 block text-sm text-gray-400">Title</label>
+          <label htmlFor="edit-title" className="mb-1 block text-sm text-gray-400">Title</label>
           <input
+            id="edit-title"
             className={inputCls}
             value={title}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
@@ -131,10 +132,11 @@ function EditModal({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-gray-400">
+          <label htmlFor="edit-description" className="mb-1 block text-sm text-gray-400">
             Description
           </label>
           <textarea
+            id="edit-description"
             rows={3}
             className={inputCls}
             value={description}
